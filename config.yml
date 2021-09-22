@@ -1,0 +1,15 @@
+downloader: 'deluge' # Currently, only support 'deluge' and 'qbittorrent
+download_location: '$(projectRoot)/temp/'
+deluge:
+  json_rpc_url: 'http://localhost:8112/json'
+  password: 'deluge'
+qBittorrent:
+  api_url: 'http://localhost:8080'
+  username: 'admin'
+  password: 'admin'
+
+# used for composing the url for downloading output file from job executor, default is http://localhost:8000/output/
+webserver:
+  enabledHttps: true
+  host: "localhost"
+  port: 8081
