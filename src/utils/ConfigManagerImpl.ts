@@ -22,8 +22,6 @@ import { injectable } from 'inversify';
 import { QBittorrentConfig } from '../domain/QBittorrentConfig';
 import { ConnectionOptions } from 'typeorm';
 import { Options } from 'amqplib';
-import { writeFile } from 'fs/promises';
-import { nanoid } from 'nanoid';
 import * as os from 'os';
 
 type OrmConfig = {
@@ -62,6 +60,7 @@ type AppConfig = {
         port: number;
     }
     appIdHostMap: { [appId: string]: string};
+    albireoRPC: string;
 };
 
 const CWD_PATTERN = /\${cwd}/;
@@ -94,7 +93,7 @@ export class ConfigManagerImpl implements ConfigManager {
     }
 
     public defaultDownloadLocation(): string {
-        return this._config.download_location;
+        return ConfigManagerImpl.processPath(this._config.download_location);
     }
 
     public getQBittorrentConfig(): QBittorrentConfig {
@@ -143,8 +142,12 @@ export class ConfigManagerImpl implements ConfigManager {
         return this._config.download_manager_id;
     }
 
-    appIdHostMap(): { [p: string]: string } {
+    public appIdHostMap(): { [p: string]: string } {
         return this._config.appIdHostMap || {};
+    }
+
+    public albireoRPCUrl(): string {
+        return this._config.albireoRPC;
     }
 
     private static processPath(pathStr: string): string {

@@ -16,7 +16,7 @@
 
 import { DownloadAdapter } from './DownloadAdapter';
 import { inject, injectable } from 'inversify';
-import { BehaviorSubject, Observable, Subject } from 'rxjs/dist/types';
+import { BehaviorSubject, Observable } from 'rxjs';
 import { TYPES } from '../TYPES';
 import { ConfigManager } from '../utils/ConfigManager';
 import axios from 'axios';
@@ -32,9 +32,13 @@ import { JobStatus } from '../domain/JobStatus';
 import Timer = NodeJS.Timer;
 import { TorrentFile } from '../domain/TorrentFile';
 import { TorrentInfo } from '../domain/TorrentInfo';
+import { getTorrentHash } from '../utils/torrent-utils';
+import { promisify } from 'util';
 
 const TMP_ID_SIZE = 8;
 const REFRESH_INFO_INTERVAL = 5000;
+
+const sleep = promisify(setTimeout);
 
 @injectable()
 export class QBittorrentDownloadAdapter implements DownloadAdapter {
@@ -62,42 +66,25 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
         const form = new FormData();
         form.append('urls', torrentUrlOrMagnet);
         form.append('savepath', savePath);
-        form.append('tags', tmpId);
+        // form.append('tags', tmpId);
         const headers = form.getHeaders({
             Cookie: this._cookie,
             'Content-Length': form.getLengthSync()
         });
+        const hash = await getTorrentHash(torrentUrlOrMagnet);
         await axios.post(`${this._baseUrl}/torrents/add`, form, {
             headers
         });
-        // get torrent info list
-        const resp = await axios.get(`${this._baseUrl}/torrents/info`, {
-            params: {
-                tag: tmpId
-            },
-            headers: {cookie: this._cookie}
-        });
-        if (resp.data && resp.data.length === 1) {
-            const hash = resp.data[0].hash;
-            // remove tags
-            await axios.post(`${this._baseUrl}/torrents/removeTags`, null, {
-                params: {
-                    hashes: hash,
-                    tags: tmpId
-                },
-                headers: {Cookie: this._cookie}
-            });
-            return hash;
-        } else {
-            throw new Error('Torrent added but not find in qBittorrent');
-        }
+        // wait until torrent can be queried by the hash
+        await this.ensureExists(hash);
+        return hash;
     }
 
     public async remove(torrentId: string, deleteFiles: boolean): Promise<void> {
         await axios.get(`${this._baseUrl}/torrents/delete`, {
             params: {
                 hashes: torrentId,
-                deleteFiles: deleteFiles
+                deleteFiles: deleteFiles ? 'true' : 'false'
             },
             headers: {Cookie: this._cookie}
         });
@@ -136,10 +123,11 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
         const config = this._configManager.getQBittorrentConfig();
         const username = config.username;
         const password = config.password;
-        const response = await axios.get(`${this._baseUrl}/login`, {
+        const response = await axios.get(`${this._baseUrl}/auth/login`, {
             params:{ username, password }
         });
         const cookies = response.headers['set-cookie'];
+
         if (Array.isArray(cookies)) {
             this._cookie = cookies.filter(cookie => cookie.includes('SID='))[0];
         } else {
@@ -150,11 +138,13 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
     private checkTorrentStatus(): void {
         this._databaseService.getJobRepository().listUnsettledJobs(DownloaderType.qBittorrent)
             .then((jobs) => {
+                console.log('Unsettled Jobs: ' + jobs.map(job => `${job.id} - ${job.torrentId}`).join(' | '));
                 axios.get(`${this._baseUrl}/torrents/info`, {
                     headers: {Cookie: this._cookie}
                 })
                     .then(res => res.data as QBittorrentInfo[])
                     .then(infoList => {
+                        console.log('torrentInfos: ' + infoList.map(info => info.hash).join(' | '));
                         const infoIdMapping = {};
                         for (let i = 0; i < infoList.length; i++) {
                             infoIdMapping[infoList[i].hash] = i;
@@ -162,9 +152,8 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
                         let idx, info;
                         const changedJobs = [];
                         for (const job of jobs) {
-                            idx = infoIdMapping[job.torrentId];
-                            if (idx) {
-                                info = infoList[idx];
+                            if (infoIdMapping.hasOwnProperty(job.torrentId)) {
+                                info = infoList[infoIdMapping[job.torrentId]];
                                 const status = QBittorrentDownloadAdapter.convertStateToJobStatus(info.state);
                                 if (status !== job.status) {
                                     job.status = status;
@@ -240,6 +229,23 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
                 return JobStatus.Paused;
             default:
                 return JobStatus.Removed;
+        }
+    }
+
+    private async ensureExists(torrentHash: string): Promise<void> {
+        await sleep(50);
+        let found = false;
+        while(!found) {
+            try {
+                await this.getTorrentInfo(torrentHash);
+                found = true;
+            } catch (ex) {
+                if (ex.response && ex.response.status === 404) {
+                    await sleep(50);
+                } else {
+                    throw ex;
+                }
+            }
         }
     }
 }

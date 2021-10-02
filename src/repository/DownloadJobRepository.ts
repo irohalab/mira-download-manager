@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-import { Repository } from 'typeorm';
+import { EntityRepository, Repository } from 'typeorm';
 import { DownloadJob } from '../entity/DownloadJob';
 import { DownloaderType } from '../domain/DownloaderType';
 import { JobStatus } from '../domain/JobStatus';
 
+@EntityRepository(DownloadJob)
 export class DownloadJobRepository extends Repository<DownloadJob> {
     public async listUnsettledJobs(downloaderType: DownloaderType): Promise<DownloadJob[]> {
         return await this.createQueryBuilder('download_job')

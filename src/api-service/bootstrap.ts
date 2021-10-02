@@ -23,21 +23,8 @@ import { Server } from 'http';
 import * as bodyParser from 'body-parser';
 import * as cors from 'cors';
 
-const JOB_EXECUTOR = 'JOB_EXECUTOR';
-const API_SERVER = 'API_SERVER';
-
-const startAs = process.env.START_AS;
-if (startAs === JOB_EXECUTOR) {
-    // tslint:disable-next-line:no-var-requires
-    require('./controller/FileController');
-} else if (startAs === API_SERVER) {
-    // tslint:disable-next-line:no-var-requires
-    // require('./controller/RuleController');
-} else {
-    throw new Error('START_AS env not correct');
-}
-
-
+import './controller/FileController';
+import './controller/RpcController';
 
 const DEBUG = process.env.DEBUG === 'true';
 

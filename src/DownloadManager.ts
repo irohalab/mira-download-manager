@@ -31,6 +31,7 @@ import { DownloadJob } from './entity/DownloadJob';
 import { join, basename } from 'path';
 import { ConfigManager } from './utils/ConfigManager';
 import { FileManageService } from './service/FileManageService';
+import axios from 'axios';
 
 @injectable()
 export class DownloadManager {
@@ -43,16 +44,18 @@ export class DownloadManager {
 
     public async start(): Promise<void> {
         await this._mqService.initPublisher(DOWNLOAD_MESSAGE_EXCHANGE, 'direct');
-        await this._mqService.initConsumer(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_QUEUE, VIDEO_MANAGER_GENERAL, true);
-        await this._mqService.initConsumer(CORE_TASK_EXCHANGE, 'direct', DOWNLOAD_TASK_QUEUE, DOWNLOAD_TASK, true);
+        await this._mqService.initConsumer(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_QUEUE, VIDEO_MANAGER_GENERAL);
+        await this._mqService.initConsumer(CORE_TASK_EXCHANGE, 'direct', DOWNLOAD_TASK_QUEUE, DOWNLOAD_TASK);
+
+        await this._downloadService.start();
+
         await this._mqService.consume(VIDEO_MANAGER_QUEUE, async (msg) => {
             try {
                 await this.onVideoManagerMessage(msg as VideoManagerMessage);
-                return true;
             } catch (ex) {
                 console.error(ex);
-                return false;
             }
+            return true;
         });
 
         await this._mqService.consume(DOWNLOAD_TASK_QUEUE, async (msg) => {
@@ -60,8 +63,8 @@ export class DownloadManager {
                 await this.onDownloadTask(msg as DownloadTaskMessage);
             } catch (ex) {
                 console.log(ex);
-                return false;
             }
+            return true;
         });
     }
 
@@ -77,7 +80,7 @@ export class DownloadManager {
      * @private
      */
     private async onVideoManagerMessage(msg: VideoManagerMessage): Promise<void> {
-        const savePath = join(this._configManager.defaultDownloadLocation(), msg.bangumiId);
+        const savePath = join(this._configManager.defaultDownloadLocation(), msg.bangumiId, msg.videoId);
         let videoFileDestPath: string;
         if (msg.isProcessed) {
             // download from video manager
@@ -87,7 +90,8 @@ export class DownloadManager {
             videoFileDestPath = await this._downloadService.copyVideoFile(msg.downloadTaskId, savePath);
         }
         // all work is done at download manager side.
-        // TODO: notify other
+        // TODO: deprecate this after Albireo is deprecated
+        await this.callAlbireoRpc(msg, videoFileDestPath);
     }
 
     private async onDownloadTask(msg: DownloadTaskMessage): Promise<void> {
@@ -100,5 +104,18 @@ export class DownloadManager {
         job.downloadTaskMessage = msg;
         job.downloadTaskMessageId = msg.id;
         await this._downloadService.download(job);
+    }
+
+    private async callAlbireoRpc(msg: VideoManagerMessage, videoFileDestPath: string): Promise<void> {
+        const rpcUrl = this._configManager.albireoRPCUrl();
+        // save relative path, relative to bangumi folder
+        videoFileDestPath = videoFileDestPath.substring(videoFileDestPath.indexOf(msg.videoId), videoFileDestPath.length);
+        await axios.get(`${rpcUrl}/download_complete`, {
+            params: {
+                video_id: msg.videoId,
+                bangumi_id: msg.bangumiId,
+                file_path: videoFileDestPath
+            }
+        });
     }
 }

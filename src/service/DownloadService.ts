@@ -25,11 +25,11 @@ import { DownloadJob } from '../entity/DownloadJob';
 import { DownloadMQMessage } from '../domain/DownloadMQMessage';
 import { v4 as uuid4 } from 'uuid';
 import { RemoteFile } from '../domain/RemoteFile';
-import { basename, join } from 'path';
+import { basename, join, dirname } from 'path';
 import { TorrentFile } from '../domain/TorrentFile';
 import { ConfigManager } from '../utils/ConfigManager';
 import { DownloaderType } from '../domain/DownloaderType';
-import { copyFile } from 'fs/promises';
+import { copyFile, mkdir } from 'fs/promises';
 
 @injectable()
 export class DownloadService {
@@ -44,11 +44,12 @@ export class DownloadService {
 
         this._downloader.downloadStatusChanged()
             .pipe(
+                filter(jobId => !!jobId),
                 mergeMap((jobId) => {
                     return this._databaseService.getJobRepository().findOne({id: jobId});
                 }),
                 filter(job => {
-                    return job.status === JobStatus.Complete;
+                    return job && job.status === JobStatus.Complete;
                 })
             )
             .subscribe((job) => {
@@ -58,6 +59,9 @@ export class DownloadService {
             });
 
         this._downloader.torrentDeleteEvent()
+            .pipe(
+                filter(jobId => !!jobId)
+            )
             .subscribe((jobId) => {
                 // TODO: something to do after deleted
                 console.log(jobId + ' delete id');
@@ -65,18 +69,20 @@ export class DownloadService {
     }
 
     public async download(job: DownloadJob): Promise<void> {
-        const downloader = this._configManager.downloader();
+        const downloader = this._configManager.downloader() as DownloaderType;
         switch(downloader) {
-            case 'qbittorrent':
+            case DownloaderType.qBittorrent:
                 job.downloader = DownloaderType.qBittorrent;
                 break;
-            case 'deluge':
+            case DownloaderType.Deluge:
                 job.downloader = DownloaderType.Deluge;
                 break;
         }
         const downloadLocation = join(this._configManager.defaultDownloadLocation(), job.bangumiId);
         job.torrentId = await this._downloader.download(job.torrentUrl, downloadLocation);
+        console.log('download hash: ' + job.torrentId);
         await this._databaseService.getJobRepository().save(job);
+        console.log('downloadJob id: ' + job.id);
     }
 
     /**
@@ -94,6 +100,8 @@ export class DownloadService {
             const sourcePath = join(torrentInfo.save_path, videoFile.name);
             const videoFileDestPath = join(destPath, basename(videoFile.name));
             try {
+                const destDir = dirname(videoFileDestPath);
+                await mkdir(destDir, {recursive: true});
                 await copyFile(sourcePath, videoFileDestPath);
             } catch (ex) {
                 console.warn(ex);
@@ -119,13 +127,14 @@ export class DownloadService {
                 const fileIndex = files.findIndex(f => f.name === mapping.filePath);
                 const file = remoteFiles[fileIndex];
                 const msg = this.newMessage(job);
+                msg.videoId = mapping.videoId;
                 msg.videoFile = file;
                 msg.otherFiles = remoteFiles.filter((f, i) => i !== fileIndex);
                 return msg;
             });
             const promises = [];
             for (const message of messages) {
-                promises.push(this._mqService.publish(DOWNLOAD_MESSAGE_EXCHANGE, '', messages));
+                promises.push(this._mqService.publish(DOWNLOAD_MESSAGE_EXCHANGE, '', message));
             }
             await Promise.all(promises);
         } else {

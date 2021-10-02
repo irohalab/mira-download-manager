@@ -17,7 +17,7 @@
 import 'reflect-metadata';
 import { Container } from 'inversify';
 import { ConfigManager } from './utils/ConfigManager';
-import { TYPES } from './TYPES';
+import { CORE_TASK_EXCHANGE, TYPES } from './TYPES';
 import { ConfigManagerImpl } from './utils/ConfigManagerImpl';
 import { DatabaseService } from './service/DatabaseService';
 import { DatabaseServiceImpl } from './service/DatabaseServiceImpl';
@@ -26,18 +26,21 @@ import { Server } from 'http';
 import { DownloadAdapter } from './download-adapter/DownloadAdapter';
 import { DelugeDownloadAdapter } from './download-adapter/DelugeDownloadAdapter';
 import { QBittorrentDownloadAdapter } from './download-adapter/QBittorrentDownloadAdapter';
+import { RabbitMQService } from './service/RabbitMQService';
+import { DownloaderType } from './domain/DownloaderType';
 
 const container = new Container();
 container.bind<ConfigManager>(TYPES.ConfigManager).to(ConfigManagerImpl).inSingletonScope();
 container.bind<DatabaseService>(TYPES.DatabaseService).to(DatabaseServiceImpl).inSingletonScope();
+container.bind<RabbitMQService>(RabbitMQService).toSelf().inSingletonScope();
 
-const downloader = container.get<ConfigManager>(TYPES.ConfigManager).downloader();
+const downloader = container.get<ConfigManager>(TYPES.ConfigManager).downloader() as DownloaderType;
 
 switch (downloader) {
-    case 'deluge':
+    case DownloaderType.Deluge:
         container.bind<DownloadAdapter>(TYPES.Downloader).to(DelugeDownloadAdapter).inSingletonScope();
         break;
-    case 'qbittorrent':
+    case DownloaderType.qBittorrent:
         container.bind<DownloadAdapter>(TYPES.Downloader).to(QBittorrentDownloadAdapter).inSingletonScope();
         break;
     default:
@@ -46,10 +49,14 @@ switch (downloader) {
 
 const databaseService = container.get<DatabaseService>(TYPES.DatabaseService);
 const downloadAdapter = container.get<DownloadAdapter>(TYPES.Downloader);
+const rabbitMQService = container.get<RabbitMQService>(RabbitMQService);
 
 let webServer: Server;
 
 databaseService.start()
+    .then(() => {
+        return rabbitMQService.initPublisher(CORE_TASK_EXCHANGE, 'direct');
+    })
     .then(() => {
         return downloadAdapter.connect(false);
     })

@@ -48,4 +48,9 @@ export interface ConfigManager {
      * @constructor
      */
     appIdHostMap(): { [id: string]: string };
+
+    /**
+     * Temp solution to communicate with Albireo
+     */
+    albireoRPCUrl(): string;
 }

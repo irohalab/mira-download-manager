@@ -32,12 +32,14 @@ export class DownloadJob {
 
     @Column({
         type: 'enum',
+        enum: DownloaderType,
         default: DownloaderType.qBittorrent
     })
     public downloader: DownloaderType;
 
     @Column({
         type: 'enum',
+        enum: JobStatus,
         default: JobStatus.Pending
     })
     public status: JobStatus
@@ -50,6 +52,7 @@ export class DownloadJob {
 
     @Column()
     public downloadTaskMessageId: string;
+
     @Column({
         type: 'jsonb'
     })

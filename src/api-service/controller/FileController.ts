@@ -38,7 +38,7 @@ export class FileController implements interfaces.Controller {
     private readonly _message404 = 'file not found';
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 @inject(TYPES.DatabaseService) private _database: DatabaseService,
-                private _downloader: DownloadAdapter) {
+                @inject(TYPES.Downloader) private _downloader: DownloadAdapter) {
         // this._videoTempPath = this._configManager.videoFileTempDir();
     }
 
@@ -82,10 +82,11 @@ export class FileController implements interfaces.Controller {
         }
     }
 
-    @httpDelete('/torrent/:downloadJobId')
-    public async removeTorrent(@requestParam('downloadJobId') downloadJobId: string,
+    @httpDelete('/torrent/:downloadTaskId')
+    public async removeTorrent(@requestParam('downloadTaskId') downloadTaskId: string,
                                @response() res: ExpressResponse): Promise<void> {
-        const job = await this._database.getJobRepository().findOne({id: downloadJobId});
+        console.log('remove torrent' + downloadTaskId);
+        const job = await this._database.getJobRepository().findOne({downloadTaskMessageId: downloadTaskId});
         if (job) {
             const torrentId = job.torrentId;
             await this._downloader.remove(torrentId, true);

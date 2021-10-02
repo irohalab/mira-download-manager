@@ -16,6 +16,5 @@
 
 export class FileMapping {
     filePath: string;
-    episodeNo: string;
     videoId: string;
 }
