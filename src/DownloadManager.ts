@@ -28,10 +28,11 @@ import { VideoManagerMessage } from './domain/VideoManagerMessage';
 import { DatabaseService } from './service/DatabaseService';
 import { DownloadService } from './service/DownloadService';
 import { DownloadJob } from './entity/DownloadJob';
-import { join, basename } from 'path';
+import { join, basename, extname } from 'path';
 import { ConfigManager } from './utils/ConfigManager';
 import { FileManageService } from './service/FileManageService';
 import axios from 'axios';
+import { nanoid } from 'nanoid';
 
 @injectable()
 export class DownloadManager {
@@ -80,11 +81,12 @@ export class DownloadManager {
      * @private
      */
     private async onVideoManagerMessage(msg: VideoManagerMessage): Promise<void> {
-        const savePath = join(this._configManager.defaultDownloadLocation(), msg.bangumiId, msg.videoId);
+        const savePath = join(this._configManager.defaultDownloadLocation(), msg.bangumiId);
         let videoFileDestPath: string;
         if (msg.isProcessed) {
             // download from video manager
-            videoFileDestPath = join(savePath, basename(msg.processedFile.filename));
+            const filename = FileManageService.processFilename(basename(msg.processedFile.filename));
+            videoFileDestPath = join(savePath, filename);
             await this._fileManageService.download(msg.processedFile, videoFileDestPath, msg.jobExecutorId);
         } else {
             videoFileDestPath = await this._downloadService.copyVideoFile(msg.downloadTaskId, savePath);
@@ -118,4 +120,5 @@ export class DownloadManager {
             }
         });
     }
+
 }

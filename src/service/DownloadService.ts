@@ -25,11 +25,13 @@ import { DownloadJob } from '../entity/DownloadJob';
 import { DownloadMQMessage } from '../domain/DownloadMQMessage';
 import { v4 as uuid4 } from 'uuid';
 import { RemoteFile } from '../domain/RemoteFile';
-import { basename, join, dirname } from 'path';
+import { basename, join, dirname, extname } from 'path';
 import { TorrentFile } from '../domain/TorrentFile';
 import { ConfigManager } from '../utils/ConfigManager';
 import { DownloaderType } from '../domain/DownloaderType';
 import { copyFile, mkdir } from 'fs/promises';
+import { nanoid } from 'nanoid';
+import { FileManageService } from './FileManageService';
 
 @injectable()
 export class DownloadService {
@@ -63,7 +65,6 @@ export class DownloadService {
                 filter(jobId => !!jobId)
             )
             .subscribe((jobId) => {
-                // TODO: something to do after deleted
                 console.log(jobId + ' delete id');
             });
     }
@@ -98,7 +99,7 @@ export class DownloadService {
             const torrentFiles = await this._downloader.getTorrentContent(job.torrentId);
             const videoFile = DownloadService.findVideoFile(torrentFiles);
             const sourcePath = join(torrentInfo.save_path, videoFile.name);
-            const videoFileDestPath = join(destPath, basename(videoFile.name));
+            const videoFileDestPath = join(destPath, FileManageService.processFilename(videoFile.name));
             try {
                 const destDir = dirname(videoFileDestPath);
                 await mkdir(destDir, {recursive: true});

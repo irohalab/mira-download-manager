@@ -61,6 +61,7 @@ databaseService.start()
         return downloadAdapter.connect(false);
     })
     .then(() => {
+        console.log((downloadAdapter as QBittorrentDownloadAdapter)._cookie);
         webServer = bootstrap(container);
     });
 

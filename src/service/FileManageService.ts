@@ -19,10 +19,12 @@ import { TYPES } from '../TYPES';
 import { ConfigManager } from '../utils/ConfigManager';
 import { RemoteFile } from '../domain/RemoteFile';
 import { URL } from 'url';
-import { copyFile } from 'fs/promises';
+import { copyFile, mkdir } from 'fs/promises';
 import { createWriteStream } from 'fs';
 import axios from 'axios';
 import { finished } from 'stream/promises';
+import { basename, dirname, extname } from 'path';
+import { nanoid } from 'nanoid';
 
 @injectable()
 export class FileManageService {
@@ -59,7 +61,17 @@ export class FileManageService {
         }
     }
 
+    public static processFilename(filename: string): string {
+        const randomHash = nanoid(5);
+        const e = extname(filename);
+        let b = basename(filename, e);
+        b += '-' + randomHash;
+        return b + e;
+    }
+
     private static async getVideoViaHttp(sourceUrl: string, savePath: string): Promise<void> {
+        const destDir = dirname(savePath);
+        await mkdir(destDir, {recursive: true});
         const writer = createWriteStream(savePath);
         const response = await axios.get(sourceUrl, {
             responseType: 'stream'

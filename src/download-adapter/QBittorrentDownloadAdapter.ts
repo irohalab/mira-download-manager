@@ -21,7 +21,7 @@ import { TYPES } from '../TYPES';
 import { ConfigManager } from '../utils/ConfigManager';
 import axios from 'axios';
 import * as FormData from 'form-data';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import { nanoid } from 'nanoid';
 import { QBittorrentInfo } from '../domain/QBittorrentInfo';
 import { DatabaseService } from '../service/DatabaseService';
@@ -34,6 +34,7 @@ import { TorrentFile } from '../domain/TorrentFile';
 import { TorrentInfo } from '../domain/TorrentInfo';
 import { getTorrentHash } from '../utils/torrent-utils';
 import { promisify } from 'util';
+import { rmdir } from 'fs/promises';
 
 const TMP_ID_SIZE = 8;
 const REFRESH_INFO_INTERVAL = 5000;
@@ -43,7 +44,7 @@ const sleep = promisify(setTimeout);
 @injectable()
 export class QBittorrentDownloadAdapter implements DownloadAdapter {
     private readonly _baseUrl: string;
-    private _cookie: string;
+    public _cookie: string;
     private _timerId: Timer;
     private _statusChangeSubject = new BehaviorSubject<string>(null);
     private _deleteSubject = new BehaviorSubject<string>(null);
@@ -72,40 +73,55 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
             'Content-Length': form.getLengthSync()
         });
         const hash = await getTorrentHash(torrentUrlOrMagnet);
-        await axios.post(`${this._baseUrl}/torrents/add`, form, {
-            headers
-        });
+        let added = false;
+        let retried = false;
+        while(!added) {
+            try {
+                await axios.post(`${this._baseUrl}/torrents/add`, form, {
+                    headers
+                });
+                added = true;
+            } catch (ex) {
+                if (ex.response && ex.response.status === 403 && !retried) {
+                    await this.login();
+                    retried = true;
+                } else {
+                    throw ex;
+                }
+            }
+        }
+
         // wait until torrent can be queried by the hash
         await this.ensureExists(hash);
         return hash;
     }
 
     public async remove(torrentId: string, deleteFiles: boolean): Promise<void> {
-        await axios.get(`${this._baseUrl}/torrents/delete`, {
-            params: {
-                hashes: torrentId,
-                deleteFiles: deleteFiles ? 'true' : 'false'
-            },
-            headers: {Cookie: this._cookie}
+        const info = await this.getTorrentInfo(torrentId);
+        await this.sendRequest('/torrents/delete', {
+            hashes: torrentId,
+            deleteFiles: deleteFiles ? 'true' : 'false'
         });
+        try {
+            await rmdir(info.save_path, {
+                maxRetries: 5,
+                retryDelay: 10000
+            });
+        } catch (err) {
+            console.error(err);
+        }
     }
 
     public async getTorrentInfo(torrentId: string): Promise<TorrentInfo> {
-        const response = await axios.get(`${this._baseUrl}/torrents/properties`, {
-            params: {
-                hash: torrentId.toLocaleLowerCase()
-            },
-            headers: {Cookie: this._cookie}
+        const response = await this.sendRequest('/torrents/properties', {
+            hash: torrentId.toLocaleLowerCase()
         });
         return response.data as TorrentInfo;
     }
 
     public async getTorrentContent(torrentId: string): Promise<TorrentFile[]> {
-        const response = await axios.get(`${this._baseUrl}/torrents/files`, {
-            params: {
-                hash: torrentId.toLocaleLowerCase()
-            },
-            headers: {Cookie: this._cookie}
+        const response = await this.sendRequest('/torrents/files', {
+            hash: torrentId.toLocaleLowerCase()
         });
         return response.data.filter(f => {
             return f.progress === 1;
@@ -126,6 +142,9 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
         const response = await axios.get(`${this._baseUrl}/auth/login`, {
             params:{ username, password }
         });
+        if (response.statusText !== 'OK') {
+            throw new Error('Auth failed, invalid credential');
+        }
         const cookies = response.headers['set-cookie'];
 
         if (Array.isArray(cookies)) {
@@ -139,9 +158,7 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
         this._databaseService.getJobRepository().listUnsettledJobs(DownloaderType.qBittorrent)
             .then((jobs) => {
                 console.log('Unsettled Jobs: ' + jobs.map(job => `${job.id} - ${job.torrentId}`).join(' | '));
-                axios.get(`${this._baseUrl}/torrents/info`, {
-                    headers: {Cookie: this._cookie}
-                })
+                this.sendRequest('/torrents/info', null)
                     .then(res => res.data as QBittorrentInfo[])
                     .then(infoList => {
                         console.log('torrentInfos: ' + infoList.map(info => info.hash).join(' | '));
@@ -245,6 +262,29 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
                 } else {
                     throw ex;
                 }
+            }
+        }
+    }
+
+    /**
+     * send request to qbittorrent daemon, when auth failed try re-auth.
+     * @param pathname, relative path name with the leading slash
+     * @param params, params of axios
+     * @param retried, internal used only
+     * @private
+     */
+    private async sendRequest(pathname: string, params: any, retried: boolean = false): Promise<any> {
+        try {
+            return await axios.get(this._baseUrl + pathname, {
+                params: params,
+                headers: {Cookie: this._cookie}
+            });
+        } catch (err) {
+            if (err.response && err.response.status === 403 && !retried) {
+                await this.login();
+                return this.sendRequest(pathname, params, true);
+            } else {
+                throw err;
             }
         }
     }

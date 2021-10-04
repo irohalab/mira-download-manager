@@ -21,7 +21,7 @@ qBittorrent:
 
 # used for composing the url for downloading output file from job executor, default is http://localhost:8000/output/
 webserver:
-  enabledHttps: true
+  enabledHttps: false
   host: "localhost"
   port: 8081
 

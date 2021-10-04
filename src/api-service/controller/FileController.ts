@@ -31,6 +31,7 @@ import { join, basename } from 'path';
 import { stat } from 'fs/promises';
 import { DatabaseService } from '../../service/DatabaseService';
 import { DownloadAdapter } from '../../download-adapter/DownloadAdapter';
+import { QBittorrentDownloadAdapter } from '../../download-adapter/QBittorrentDownloadAdapter';
 
 @controller('/file')
 export class FileController implements interfaces.Controller {
@@ -46,7 +47,7 @@ export class FileController implements interfaces.Controller {
     public async downloadContent(@requestParam('downloadJobId') downloadJobId: string,
                          @queryParam('relativeFilePath') relativeFilePath: string,
                          @response() res: ExpressResponse): Promise<void> {
-
+        console.log((<QBittorrentDownloadAdapter> this._downloader)._cookie);
         const job = await this._database.getJobRepository().findOne({id: downloadJobId});
         if (job) {
             const torrentId = job.torrentId;
@@ -55,6 +56,7 @@ export class FileController implements interfaces.Controller {
             const fileLocalPath = join(savePath, relativeFilePath);
             const filename = basename(relativeFilePath);
             try {
+                console.log(filename);
                 const fsStatObj = await stat(fileLocalPath);
                 if (!fsStatObj.isFile()) {
                     res.status(404).json({'message': this._message404});
@@ -86,7 +88,8 @@ export class FileController implements interfaces.Controller {
     public async removeTorrent(@requestParam('downloadTaskId') downloadTaskId: string,
                                @response() res: ExpressResponse): Promise<void> {
         console.log('remove torrent' + downloadTaskId);
-        const job = await this._database.getJobRepository().findOne({downloadTaskMessageId: downloadTaskId});
+        const repo = this._database.getJobRepository();
+        const job = await repo.findOne({downloadTaskMessageId: downloadTaskId});
         if (job) {
             const torrentId = job.torrentId;
             await this._downloader.remove(torrentId, true);

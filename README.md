@@ -5,7 +5,7 @@ System dependencies: qBittorrent
 Deluge will be supported
 
 ## Start
-- Start Download Manager: `npm run start:manager`
+- Start Download Manager: `npm run start`
 - Start WebServer: `npm run start:server`
 
 Environment variables:

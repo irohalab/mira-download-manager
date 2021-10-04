@@ -132,6 +132,7 @@ export class ConfigManagerImpl implements ConfigManager {
     }
     public getFileUrl(relativeFilePath: string, downloadJobId: string): string {
         const serverBaseUrl = process.env.SERVER_BASE_URL;
+        relativeFilePath = encodeURIComponent(relativeFilePath);
         if (serverBaseUrl) {
             return `${serverBaseUrl}/file/content/${downloadJobId}?relativeFilePath=${relativeFilePath}`;
         }
