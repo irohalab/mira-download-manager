@@ -25,6 +25,7 @@ import * as cors from 'cors';
 
 import './controller/FileController';
 import './controller/RpcController';
+import './controller/DownloadController';
 
 const DEBUG = process.env.DEBUG === 'true';
 

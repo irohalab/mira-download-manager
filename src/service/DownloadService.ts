@@ -25,12 +25,11 @@ import { DownloadJob } from '../entity/DownloadJob';
 import { DownloadMQMessage } from '../domain/DownloadMQMessage';
 import { v4 as uuid4 } from 'uuid';
 import { RemoteFile } from '../domain/RemoteFile';
-import { basename, join, dirname, extname } from 'path';
+import { basename, join, dirname } from 'path';
 import { TorrentFile } from '../domain/TorrentFile';
 import { ConfigManager } from '../utils/ConfigManager';
 import { DownloaderType } from '../domain/DownloaderType';
 import { copyFile, mkdir } from 'fs/promises';
-import { nanoid } from 'nanoid';
 import { FileManageService } from './FileManageService';
 
 @injectable()

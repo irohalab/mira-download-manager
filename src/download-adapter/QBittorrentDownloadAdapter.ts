@@ -23,7 +23,7 @@ import axios from 'axios';
 import * as FormData from 'form-data';
 import { join, dirname } from 'path';
 import { nanoid } from 'nanoid';
-import { QBittorrentInfo } from '../domain/QBittorrentInfo';
+import { QBittorrentInfo } from '../domain/QBittorrentInfo';    
 import { DatabaseService } from '../service/DatabaseService';
 import { DownloaderType } from '../domain/DownloaderType';
 import { QBittorrentState } from '../domain/QBittorrentState';
@@ -53,6 +53,7 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
                 @inject(TYPES.DatabaseService) private _databaseService: DatabaseService) {
         this._baseUrl = this._configManager.getQBittorrentConfig().api_url;
     }
+
     public async connect(enableEvent:boolean): Promise<void> {
         await this.login();
         if (enableEvent) {
@@ -157,24 +158,29 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
     private checkTorrentStatus(): void {
         this._databaseService.getJobRepository().listUnsettledJobs(DownloaderType.qBittorrent)
             .then((jobs) => {
-                console.log('Unsettled Jobs: ' + jobs.map(job => `${job.id} - ${job.torrentId}`).join(' | '));
+                // console.log('Unsettled Jobs: ' + jobs.map(job => `${job.id} - ${job.torrentId}`).join(' | '));
                 this.sendRequest('/torrents/info', null)
                     .then(res => res.data as QBittorrentInfo[])
                     .then(infoList => {
-                        console.log('torrentInfos: ' + infoList.map(info => info.hash).join(' | '));
+                        // console.log('torrentInfos: ' + infoList.map(info => info.hash).join(' | '));
                         const infoIdMapping = {};
                         for (let i = 0; i < infoList.length; i++) {
                             infoIdMapping[infoList[i].hash] = i;
                         }
                         let idx, info;
                         const changedJobs = [];
+                        const progressUpdatedJobs = [];
                         for (const job of jobs) {
                             if (infoIdMapping.hasOwnProperty(job.torrentId)) {
                                 info = infoList[infoIdMapping[job.torrentId]];
                                 const status = QBittorrentDownloadAdapter.convertStateToJobStatus(info.state);
                                 if (status !== job.status) {
                                     job.status = status;
+                                    job.progress = info.progress;
                                     changedJobs.push(job);
+                                } else if (job.progress !== info.progress) {
+                                    job.progress = info.progress;
+                                    progressUpdatedJobs.push(job);
                                 }
                             } else {
                                 // torrent got deleted
@@ -183,7 +189,7 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
                             }
                         }
                         if (changedJobs.length > 0) {
-                            return this.updateJobStatus(changedJobs)
+                            return this.updateJobs(changedJobs.concat(progressUpdatedJobs))
                                 .then(() => {
                                     for (const job of changedJobs) {
                                         if (job.status === JobStatus.Removed) {
@@ -193,6 +199,8 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
                                         }
                                     }
                                 });
+                        } else if (progressUpdatedJobs.length > 0) {
+                            return this.updateJobs(progressUpdatedJobs);
                         }
                     })
                     .then(() => {
@@ -211,7 +219,7 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
         this._statusChangeSubject.next(job.id);
     }
 
-    private async updateJobStatus(jobs: DownloadJob[]): Promise<void> {
+    private async updateJobs(jobs: DownloadJob[]): Promise<void> {
         try {
             await this._databaseService.getJobRepository().save(jobs);
         } catch (ex) {

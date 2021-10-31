@@ -73,4 +73,10 @@ export class DownloadJob {
         nullable: true
     })
     public videoId: string;
+
+    @Column({
+        type: 'float',
+        default: 0
+    })
+    public progress: number;
 }
