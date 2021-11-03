@@ -1,7 +1,7 @@
 {
-   "name": "new-typeorm-project",
-   "version": "0.0.1",
-   "description": "Awesome project developed with TypeORM.",
+   "name": "mira-download-manager",
+   "version": "0.1.0",
+   "description": "manage download of video files",
    "devDependencies": {
       "@types/amqplib": "^0.8.2",
       "@types/js-yaml": "^4.0.3",
@@ -9,6 +9,7 @@
       "@types/parse-torrent": "^5.8.4",
       "ava": "^3.15.0",
       "cross-env": "^7.0.3",
+      "rimraf": "^3.0.2",
       "ts-node": "3.3.0",
       "typescript": "3.3.3333"
    },
@@ -30,6 +31,9 @@
    },
    "scripts": {
       "start": "cross-env DEBUG=true ts-node src/main.ts",
-      "start:server": "cross-env DEBUG=true ts-node src/WebServer.ts"
+      "start:server": "cross-env DEBUG=true ts-node src/WebServer.ts",
+      "clean:dist": "rimraf build/*",
+      "build": "npm run clean:build && tsc && cp package.json build",
+      "prod": "node build/main.js"
    }
 }

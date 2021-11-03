@@ -28,11 +28,10 @@ import { VideoManagerMessage } from './domain/VideoManagerMessage';
 import { DatabaseService } from './service/DatabaseService';
 import { DownloadService } from './service/DownloadService';
 import { DownloadJob } from './entity/DownloadJob';
-import { join, basename, extname } from 'path';
+import { join, basename } from 'path';
 import { ConfigManager } from './utils/ConfigManager';
 import { FileManageService } from './service/FileManageService';
 import axios from 'axios';
-import { nanoid } from 'nanoid';
 
 @injectable()
 export class DownloadManager {
