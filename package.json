@@ -33,7 +33,7 @@
       "start": "cross-env DEBUG=true ts-node src/main.ts",
       "start:server": "cross-env DEBUG=true ts-node src/WebServer.ts",
       "clean:dist": "rimraf build/*",
-      "build": "npm run clean:build && tsc && cp package.json build",
+      "build": "npm run clean:dist && tsc && cp package.json build",
       "prod": "node build/main.js"
    }
 }
