@@ -15,7 +15,7 @@
  */
 
 import { DownloadAdapter } from '../download-adapter/DownloadAdapter';
-import { Observable, of } from 'rxjs/dist/types';
+import { Observable, of } from 'rxjs';
 import { TorrentFile } from '../domain/TorrentFile';
 import { TorrentInfo } from '../domain/TorrentInfo';
 

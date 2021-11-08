@@ -63,7 +63,7 @@ export class FileController implements interfaces.Controller {
                     return;
                 }
                 console.log('fileLocalPath', fileLocalPath);
-                await new Promise((resolve, reject) => {
+                await new Promise<void>((resolve, reject) => {
                     res.download(fileLocalPath, filename, (err) => {
                         if (err) {
                             console.error(err);

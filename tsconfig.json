@@ -1,15 +1,25 @@
 {
    "compilerOptions": {
       "lib": [
-         "es5",
-         "es6"
+         "es2017",
+         "esnext.asynciterable",
+         "WebWorker"
       ],
-      "target": "es5",
+      "target": "es2017",
       "module": "commonjs",
       "moduleResolution": "node",
       "outDir": "./build",
       "emitDecoratorMetadata": true,
       "experimentalDecorators": true,
-      "sourceMap": true
-   }
+      "importHelpers": true,
+      "sourceMap": true,
+      "baseUrl": "src",
+      "rootDir": "src",
+      "paths": {
+         "*": ["node_modules/@types"]
+      }
+   },
+   "exclude": [
+      "node_modules"
+   ]
 }

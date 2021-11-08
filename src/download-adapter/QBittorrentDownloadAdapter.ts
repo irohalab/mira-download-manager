@@ -161,15 +161,15 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
                 // console.log('Unsettled Jobs: ' + jobs.map(job => `${job.id} - ${job.torrentId}`).join(' | '));
                 this.sendRequest('/torrents/info', null)
                     .then(res => res.data as QBittorrentInfo[])
-                    .then(infoList => {
+                    .then((infoList: QBittorrentInfo[]) => {
                         // console.log('torrentInfos: ' + infoList.map(info => info.hash).join(' | '));
                         const infoIdMapping = {};
                         for (let i = 0; i < infoList.length; i++) {
                             infoIdMapping[infoList[i].hash] = i;
                         }
                         let idx, info;
-                        const changedJobs = [];
-                        const progressUpdatedJobs = [];
+                        const changedJobs: DownloadJob[] = [];
+                        const progressUpdatedJobs: DownloadJob[] = [];
                         for (const job of jobs) {
                             if (infoIdMapping.hasOwnProperty(job.torrentId)) {
                                 info = infoList[infoIdMapping[job.torrentId]];

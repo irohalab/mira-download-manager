@@ -15,7 +15,7 @@
  */
 
 import { DownloadAdapter } from './DownloadAdapter';
-import { Observable } from 'rxjs/dist/types';
+import { Observable } from 'rxjs';
 import { inject, injectable } from 'inversify';
 import { TYPES } from '../TYPES';
 import { ConfigManager } from '../utils/ConfigManager';

@@ -46,14 +46,14 @@ export class DownloadService {
         this._downloader.downloadStatusChanged()
             .pipe(
                 filter(jobId => !!jobId),
-                mergeMap((jobId) => {
+                mergeMap((jobId: string) => {
                     return this._databaseService.getJobRepository().findOne({id: jobId});
                 }),
-                filter(job => {
+                filter((job: DownloadJob) => {
                     return job && job.status === JobStatus.Complete;
                 })
             )
-            .subscribe((job) => {
+            .subscribe((job: DownloadJob | undefined) => {
                 this.downloadComplete(job).then(() => {
                     console.log('download complete');
                 });
@@ -63,7 +63,7 @@ export class DownloadService {
             .pipe(
                 filter(jobId => !!jobId)
             )
-            .subscribe((jobId) => {
+            .subscribe((jobId: string) => {
                 console.log(jobId + ' delete id');
             });
     }
