@@ -104,12 +104,9 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
             deleteFiles: deleteFiles ? 'true' : 'false'
         });
         try {
-            await rmdir(info.save_path, {
-                maxRetries: 5,
-                retryDelay: 10000
-            });
-        } catch (err) {
-            console.error(err);
+            await this._databaseService.getCleanUpTaskRepository().addTempFolderPath(info.save_path);
+        } catch (e) {
+            console.warn(e);
         }
     }
 

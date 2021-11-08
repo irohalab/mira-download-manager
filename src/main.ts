@@ -56,6 +56,7 @@ container.bind<DownloadManager>(DownloadManager).toSelf().inSingletonScope();
 
 const databaseService = container.get<DatabaseService>(TYPES.DatabaseService);
 const downloadManager = container.get<DownloadManager>(DownloadManager);
+const fileManageService = container.get<FileManageService>(FileManageService);
 
 databaseService.start()
     .then(() => {
@@ -63,12 +64,14 @@ databaseService.start()
     })
     .then(() => {
         console.log('download manager start');
+        fileManageService.startCleanUp();
     }, (err) => {
         console.error(err);
         process.exit(-1);
     });
 
 function beforeExitHandler() {
+    fileManageService.stopCleanUp();
     downloadManager.stop()
         .then(() => {
             return databaseService.stop();

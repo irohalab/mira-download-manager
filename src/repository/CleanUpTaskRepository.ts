@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-import { DownloadJobRepository } from '../repository/DownloadJobRepository';
-import { MessageRepository } from '../repository/MessageRepository';
-import { CleanUpTaskRepository } from '../repository/CleanUpTaskRepository';
+import { Repository } from 'typeorm';
+import { CleanUpTask } from '../entity/CleanUpTask';
 
-export interface DatabaseService {
-    start(): Promise<void>;
-    stop(): Promise<void>;
-    getJobRepository(): DownloadJobRepository;
-    getMessageRepository(): MessageRepository;
-    getCleanUpTaskRepository(): CleanUpTaskRepository;
+export class CleanUpTaskRepository extends Repository<CleanUpTask> {
+    public async addTempFolderPath(tempFolderPath: string): Promise<void> {
+        const task = new CleanUpTask();
+        task.directoryPath = tempFolderPath;
+        await this.save(task);
+    }
 }

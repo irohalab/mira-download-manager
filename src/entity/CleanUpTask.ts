@@ -14,14 +14,10 @@
  * limitations under the License.
  */
 
-import { DownloadJobRepository } from '../repository/DownloadJobRepository';
-import { MessageRepository } from '../repository/MessageRepository';
-import { CleanUpTaskRepository } from '../repository/CleanUpTaskRepository';
+import { Column, Entity } from 'typeorm';
 
-export interface DatabaseService {
-    start(): Promise<void>;
-    stop(): Promise<void>;
-    getJobRepository(): DownloadJobRepository;
-    getMessageRepository(): MessageRepository;
-    getCleanUpTaskRepository(): CleanUpTaskRepository;
+@Entity()
+export class CleanUpTask {
+    @Column()
+    public directoryPath: string;
 }

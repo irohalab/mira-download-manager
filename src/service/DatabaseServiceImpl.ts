@@ -21,6 +21,7 @@ import { ConfigManager } from '../utils/ConfigManager';
 import { DownloadJobRepository } from '../repository/DownloadJobRepository';
 import { Connection, createConnection, getCustomRepository } from 'typeorm';
 import { MessageRepository } from '../repository/MessageRepository';
+import { CleanUpTaskRepository } from '../repository/CleanUpTaskRepository';
 
 @injectable()
 export class DatabaseServiceImpl implements DatabaseService {
@@ -45,5 +46,9 @@ export class DatabaseServiceImpl implements DatabaseService {
 
     public getMessageRepository(): MessageRepository {
         return getCustomRepository<MessageRepository>(MessageRepository);
+    }
+
+    public getCleanUpTaskRepository(): CleanUpTaskRepository {
+        return getCustomRepository<CleanUpTaskRepository>(CleanUpTaskRepository);
     }
 }

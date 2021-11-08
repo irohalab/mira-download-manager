@@ -19,16 +19,22 @@ import { TYPES } from '../TYPES';
 import { ConfigManager } from '../utils/ConfigManager';
 import { RemoteFile } from '../domain/RemoteFile';
 import { URL } from 'url';
-import { copyFile, mkdir } from 'fs/promises';
+import { copyFile, mkdir, rmdir } from 'fs/promises';
 import { createWriteStream } from 'fs';
 import axios from 'axios';
 import { finished } from 'stream/promises';
 import { basename, dirname, extname } from 'path';
 import { nanoid } from 'nanoid';
+import { DatabaseService } from './DatabaseService';
+
+const CLEAN_UP_INTERVAL = 5 * 60000;
 
 @injectable()
 export class FileManageService {
-    constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager) {
+    private _cleanUpTaskTimerId: NodeJS.Timeout;
+
+    constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
+                private _databaseService: DatabaseService) {
     }
 
     public async download(remoteFile: RemoteFile, destPath: string, appId: string): Promise<void> {
@@ -67,6 +73,35 @@ export class FileManageService {
         let b = basename(filename, e);
         b += '-' + randomHash;
         return b + e;
+    }
+
+    public startCleanUp(): void {
+        this._cleanUpTaskTimerId = setTimeout(async () => {
+            await this.doCleanUp();
+            this.startCleanUp();
+        }, CLEAN_UP_INTERVAL);
+    }
+
+    public stopCleanUp(): void {
+        clearTimeout(this._cleanUpTaskTimerId);
+    }
+
+    private async doCleanUp(): Promise<void> {
+        const taskRepo = this._databaseService.getCleanUpTaskRepository();
+        const tasks = await taskRepo.find();
+        if (tasks && tasks.length > 0) {
+            for (let task of tasks) {
+                try {
+                    await rmdir(task.directoryPath, {
+                        maxRetries: 2,
+                        retryDelay: 1000
+                    });
+                    await taskRepo.remove(task);
+                } catch (e) {
+                    console.warn(e);
+                }
+            }
+        }
     }
 
     private static async getVideoViaHttp(sourceUrl: string, savePath: string): Promise<void> {
