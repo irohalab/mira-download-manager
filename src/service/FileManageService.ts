@@ -77,7 +77,11 @@ export class FileManageService {
 
     public startCleanUp(): void {
         this._cleanUpTaskTimerId = setTimeout(async () => {
-            await this.doCleanUp();
+            try {
+                await this.doCleanUp();
+            } catch (e) {
+               console.warn(e);
+            }
             this.startCleanUp();
         }, CLEAN_UP_INTERVAL);
     }
@@ -92,6 +96,7 @@ export class FileManageService {
         if (tasks && tasks.length > 0) {
             for (let task of tasks) {
                 try {
+                    console.log('try to clean up folder ' + task.directoryPath);
                     await rmdir(task.directoryPath, {
                         maxRetries: 2,
                         retryDelay: 1000

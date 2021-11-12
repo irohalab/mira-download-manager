@@ -34,8 +34,9 @@
    "scripts": {
       "start": "cross-env DEBUG=true ts-node src/main.ts",
       "start:server": "cross-env DEBUG=true ts-node src/WebServer.ts",
-      "clean:dist": "rimraf build/*",
-      "build": "npm run clean:dist && tsc && cp package.json build",
-      "prod": "node build/main.js"
+      "clean:dist": "rimraf dist/*",
+      "build": "npm run clean:dist && tsc && cp package.json dist",
+      "prod:main": "node dist/main.js",
+      "prod:server": "node dist/WebServer.js"
    }
 }
