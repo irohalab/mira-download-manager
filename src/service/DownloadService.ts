@@ -51,6 +51,10 @@ export class DownloadService {
                 }),
                 filter((job: DownloadJob) => {
                     return job && job.status === JobStatus.Complete;
+                }),
+                mergeMap((job: DownloadJob) => {
+                    job.endTime = new Date();
+                    return this._databaseService.getJobRepository().save(job);
                 })
             )
             .subscribe((job: DownloadJob | undefined) => {
@@ -157,7 +161,6 @@ export class DownloadService {
         msg.id = uuid4();
         msg.downloadTaskId = job.id;
         msg.bangumiId = job.bangumiId;
-        msg.appliedProcessRuleId = job.appliedProcessRuleId;
         msg.downloadManagerId = this._configManager.applicationId();
         msg.videoId = job.videoId;
         return msg;

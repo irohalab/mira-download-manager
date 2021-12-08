@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
-import { Column, Entity } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity()
 export class CleanUpTask {
+    @PrimaryGeneratedColumn('uuid')
+    public id: string;
+
     @Column()
     public directoryPath: string;
 }

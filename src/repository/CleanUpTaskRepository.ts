@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-import { Repository } from 'typeorm';
+import { EntityRepository, Repository } from 'typeorm';
 import { CleanUpTask } from '../entity/CleanUpTask';
 
+@EntityRepository(CleanUpTask)
 export class CleanUpTaskRepository extends Repository<CleanUpTask> {
     public async addTempFolderPath(tempFolderPath: string): Promise<void> {
         const task = new CleanUpTask();

@@ -66,7 +66,7 @@ export class FileController implements interfaces.Controller {
                 await new Promise<void>((resolve, reject) => {
                     res.download(fileLocalPath, filename, (err) => {
                         if (err) {
-                            console.error(err);
+                            console.error('error when sending downloaded file' + err);
                             reject(err);
                         } else {
                             console.log('Sent:', filename);

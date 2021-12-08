@@ -67,11 +67,6 @@ export class DownloadJob {
     @Column({
         nullable: true
     })
-    public appliedProcessRuleId: string;
-
-    @Column({
-        nullable: true
-    })
     public videoId: string;
 
     @Column({
@@ -79,4 +74,17 @@ export class DownloadJob {
         default: 0
     })
     public progress: number;
+
+    @Column({
+        type: 'timestamp',
+        nullable: true
+    })
+    public createTime: Date;
+
+    // there may be delay between job endTime and the torrent endTime
+    @Column({
+        type: 'timestamp',
+        nullable: true
+    })
+    public endTime: Date;
 }

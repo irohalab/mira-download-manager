@@ -23,6 +23,5 @@ export class DownloadTaskMessage implements MQMessage {
     public bangumiId: string;
     public torrentUrl: string;
     public fileMapping: FileMapping[];
-    public appliedProcessRuleId: string;
     public videoId: string;
 }

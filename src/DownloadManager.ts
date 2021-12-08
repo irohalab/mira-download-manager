@@ -32,6 +32,9 @@ import { join, basename } from 'path';
 import { ConfigManager } from './utils/ConfigManager';
 import { FileManageService } from './service/FileManageService';
 import axios from 'axios';
+import { promisify } from 'util';
+
+const sleep = promisify(setTimeout);
 
 @injectable()
 export class DownloadManager {
@@ -63,6 +66,8 @@ export class DownloadManager {
                 await this.onDownloadTask(msg as DownloadTaskMessage);
             } catch (ex) {
                 console.log(ex);
+                await sleep(3000);
+                return false;
             }
             return true;
         });
@@ -97,25 +102,28 @@ export class DownloadManager {
 
     private async onDownloadTask(msg: DownloadTaskMessage): Promise<void> {
         const job = new DownloadJob();
-        job.appliedProcessRuleId = msg.appliedProcessRuleId;
         job.bangumiId = msg.bangumiId;
         job.torrentUrl = msg.torrentUrl;
         job.videoId = msg.videoId;
         job.fileMapping = msg.fileMapping;
         job.downloadTaskMessage = msg;
         job.downloadTaskMessageId = msg.id;
+        job.createTime = new Date();
         await this._downloadService.download(job);
     }
 
     private async callAlbireoRpc(msg: VideoManagerMessage, videoFileDestPath: string): Promise<void> {
         const rpcUrl = this._configManager.albireoRPCUrl();
         // save relative path, relative to bangumi folder
-        videoFileDestPath = videoFileDestPath.substring(videoFileDestPath.indexOf(msg.videoId), videoFileDestPath.length);
+        videoFileDestPath = videoFileDestPath.substring(videoFileDestPath.indexOf(msg.bangumiId) + msg.bangumiId.length + 1, videoFileDestPath.length);
         await axios.get(`${rpcUrl}/download_complete`, {
             params: {
                 video_id: msg.videoId,
                 bangumi_id: msg.bangumiId,
-                file_path: videoFileDestPath
+                file_path: encodeURIComponent(videoFileDestPath)
+            },
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
             }
         });
     }

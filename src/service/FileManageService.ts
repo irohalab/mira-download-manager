@@ -34,7 +34,7 @@ export class FileManageService {
     private _cleanUpTaskTimerId: NodeJS.Timeout;
 
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
-                private _databaseService: DatabaseService) {
+                @inject(TYPES.DatabaseService) private _databaseService: DatabaseService) {
     }
 
     public async download(remoteFile: RemoteFile, destPath: string, appId: string): Promise<void> {

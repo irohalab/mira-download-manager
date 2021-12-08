@@ -17,7 +17,6 @@
 import { controller, httpGet, interfaces, queryParam, response } from 'inversify-express-utils';
 import { DatabaseService } from '../../service/DatabaseService';
 import { JobStatus } from '../../domain/JobStatus';
-import { Response as ExpressResponse } from 'express';
 import { ResponseWrapper } from '../ResponseWrapper';
 import { DownloadJob } from '../../entity/DownloadJob';
 import { inject } from 'inversify';
@@ -31,7 +30,14 @@ export class DownloadController implements interfaces.Controller {
     @httpGet('/job')
     public async listJobs(@queryParam('status') status: string): Promise<ResponseWrapper<DownloadJob[]>> {
         const jobStatus = status as JobStatus
-        const jobs = await this._database.getJobRepository().find({ status: jobStatus });
+        const jobs = await this._database.getJobRepository().find({
+            where: {
+                status: jobStatus
+            },
+            order: {
+                createTime: 'DESC'
+            }
+        });
         return {
             data: jobs || [],
             status: 0
