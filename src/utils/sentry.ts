@@ -27,7 +27,7 @@ export function setup(serverName: string): void {
         const { version } = require('../package.json');
         init({
             dsn: DSN,
-            release: `mira-video-manager@v${version}`,
+            release: `mira-download-manager@v${version}`,
             serverName
         });
     }
