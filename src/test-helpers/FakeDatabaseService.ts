@@ -18,6 +18,7 @@ import { DatabaseService } from '../service/DatabaseService';
 import { injectable } from 'inversify';
 import { DownloadJobRepository } from '../repository/DownloadJobRepository';
 import { MessageRepository } from '../repository/MessageRepository';
+import { CleanUpTaskRepository } from '../repository/CleanUpTaskRepository';
 
 @injectable()
 export class FakeDatabaseService implements DatabaseService {
@@ -35,6 +36,10 @@ export class FakeDatabaseService implements DatabaseService {
 
     public stop(): Promise<void> {
         return Promise.resolve(undefined);
+    }
+
+    public getCleanUpTaskRepository(): CleanUpTaskRepository {
+        return undefined;
     }
 
 }
