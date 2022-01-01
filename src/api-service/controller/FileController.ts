@@ -32,6 +32,10 @@ import { stat } from 'fs/promises';
 import { DatabaseService } from '../../service/DatabaseService';
 import { DownloadAdapter } from '../../download-adapter/DownloadAdapter';
 import { QBittorrentDownloadAdapter } from '../../download-adapter/QBittorrentDownloadAdapter';
+import pino from 'pino';
+import { capture } from '../../utils/sentry';
+
+const logger = pino();
 
 @controller('/file')
 export class FileController implements interfaces.Controller {
@@ -47,7 +51,7 @@ export class FileController implements interfaces.Controller {
     public async downloadContent(@requestParam('downloadJobId') downloadJobId: string,
                          @queryParam('relativeFilePath') relativeFilePath: string,
                          @response() res: ExpressResponse): Promise<void> {
-        console.log((<QBittorrentDownloadAdapter> this._downloader)._cookie);
+        logger.debug((<QBittorrentDownloadAdapter> this._downloader)._cookie);
         const job = await this._database.getJobRepository().findOne({id: downloadJobId});
         if (job) {
             const torrentId = job.torrentId;
@@ -56,20 +60,21 @@ export class FileController implements interfaces.Controller {
             const fileLocalPath = join(savePath, relativeFilePath);
             const filename = basename(relativeFilePath);
             try {
-                console.log(filename);
+                logger.debug(filename);
                 const fsStatObj = await stat(fileLocalPath);
                 if (!fsStatObj.isFile()) {
                     res.status(404).json({'message': this._message404});
                     return;
                 }
-                console.log('fileLocalPath', fileLocalPath);
+                logger.debug('fileLocalPath', fileLocalPath);
                 await new Promise<void>((resolve, reject) => {
                     res.download(fileLocalPath, filename, (err) => {
                         if (err) {
-                            console.error('error when sending downloaded file' + err);
+                            capture(err);
+                            logger.error('error when sending downloaded file' + err);
                             reject(err);
                         } else {
-                            console.log('Sent:', filename);
+                            logger.info('Sent:', filename);
                             resolve();
                         }
                     });
@@ -77,6 +82,10 @@ export class FileController implements interfaces.Controller {
             } catch (e) {
                 if (e.code === 'ENOENT') {
                     res.status(404).json({'message': this._message404});
+                } else {
+                    capture(e);
+                    logger.error(e);
+                    res.status(500).json({'message': 'internal server error'});
                 }
             }
         } else {
@@ -87,7 +96,7 @@ export class FileController implements interfaces.Controller {
     @httpDelete('/torrent/:downloadTaskId')
     public async removeTorrent(@requestParam('downloadTaskId') downloadTaskId: string,
                                @response() res: ExpressResponse): Promise<void> {
-        console.log('remove torrent' + downloadTaskId);
+        logger.debug('remove torrent' + downloadTaskId);
         const repo = this._database.getJobRepository();
         const job = await repo.findOne({downloadTaskMessageId: downloadTaskId});
         if (job) {

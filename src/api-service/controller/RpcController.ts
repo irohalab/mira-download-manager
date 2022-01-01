@@ -22,6 +22,9 @@ import { ConfigManager } from '../../utils/ConfigManager';
 import { DatabaseService } from '../../service/DatabaseService';
 import { RabbitMQService } from '../../service/RabbitMQService';
 import { inspect } from 'util';
+import pino from 'pino';
+
+const logger = pino();
 
 /**
  * This will be deprecated once we deprecate Albireo
@@ -36,7 +39,7 @@ export class RpcController implements interfaces.Controller {
 
     @httpPost('/download')
     public async sendDownloadMessage(@requestBody() body, @response() res: ExpressResponse): Promise<void> {
-        console.log('download task: ' + inspect(body));
+        logger.info('download task: ' + inspect(body));
         await this._mqService.publish(CORE_TASK_EXCHANGE, DOWNLOAD_TASK, body);
         res.status(200);
     }

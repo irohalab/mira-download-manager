@@ -22,7 +22,10 @@ import { MQMessage } from '../domain/MQMessage';
 import { DatabaseService } from './DatabaseService';
 import { Message } from '../entity/Message';
 import { TYPES } from '../TYPES';
+import pino from 'pino';
+import { capture } from '../utils/sentry';
 
+const logger = pino();
 const CHECK_INTERVAL = 5000;
 
 @injectable()
@@ -40,13 +43,14 @@ export class RabbitMQService {
         this._connection = await connect(this._configManager.amqpConfig());
         this._connection.on('close', () => {
             if (this._connected) {
-                console.warn('reconnect in 5 seconds');
+                logger.warn('reconnect in 5 seconds');
                 this.connectAsync()
                     .then(() => {
-                        console.log('reconnect successfully');
+                        logger.info('reconnect successfully');
                     })
                     .catch((err) => {
-                        console.error(err);
+                        capture(err);
+                        logger.error(err);
                     })
             }
         })
@@ -97,15 +101,15 @@ export class RabbitMQService {
                 (err, ok) => {
                     if (err !== null) {
                         // TODO: currently not reachable, need to figure out how to test this piece of code.
-                        console.warn('message nacked');
+                        logger.warn('message nacked');
                         this.saveMessage(exchangeName, routingKey, message)
                             .then(() => {
-                                console.log('message saved, will be resent')
+                                logger.info('message saved, will be resent')
                             });
                         reject(err);
                     } else {
                         resolve(true);
-                        console.log('message acked')
+                        logger.debug('message acked')
                     }
                 });
         });
@@ -146,6 +150,7 @@ export class RabbitMQService {
                 try {
                     result = await this.publish(message.exchange, message.routingKey, message.content);
                 } catch (err) {
+                    capture(err);
                     result = false;
                     break;
                 }

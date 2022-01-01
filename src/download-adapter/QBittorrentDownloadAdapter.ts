@@ -34,12 +34,14 @@ import { TorrentFile } from '../domain/TorrentFile';
 import { TorrentInfo } from '../domain/TorrentInfo';
 import { getTorrentHash } from '../utils/torrent-utils';
 import { promisify } from 'util';
-import { rmdir } from 'fs/promises';
+import pino from 'pino';
+import { capture } from '../utils/sentry';
 
 const TMP_ID_SIZE = 8;
 const REFRESH_INFO_INTERVAL = 5000;
 
 const sleep = promisify(setTimeout);
+const logger = pino();
 
 @injectable()
 export class QBittorrentDownloadAdapter implements DownloadAdapter {
@@ -106,7 +108,8 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
         try {
             await this._databaseService.getCleanUpTaskRepository().addTempFolderPath(info.save_path);
         } catch (e) {
-            console.warn(e);
+            capture(e);
+            logger.warn(e);
         }
     }
 
@@ -220,7 +223,8 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
         try {
             await this._databaseService.getJobRepository().save(jobs);
         } catch (ex) {
-            console.error(ex);
+            capture(ex);
+            logger.error(ex);
         }
     }
 

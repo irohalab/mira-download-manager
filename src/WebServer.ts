@@ -15,6 +15,7 @@
  */
 
 import 'reflect-metadata';
+import { capture, setup as setupSentry } from './utils/sentry';
 import { Container } from 'inversify';
 import { ConfigManager } from './utils/ConfigManager';
 import { CORE_TASK_EXCHANGE, TYPES } from './TYPES';
@@ -28,6 +29,11 @@ import { DelugeDownloadAdapter } from './download-adapter/DelugeDownloadAdapter'
 import { QBittorrentDownloadAdapter } from './download-adapter/QBittorrentDownloadAdapter';
 import { RabbitMQService } from './service/RabbitMQService';
 import { DownloaderType } from './domain/DownloaderType';
+import pino from 'pino';
+import { hostname } from 'os';
+
+const logger = pino();
+setupSentry(`download_manager_api_server_${hostname()}`);
 
 const container = new Container();
 container.bind<ConfigManager>(TYPES.ConfigManager).to(ConfigManagerImpl).inSingletonScope();
@@ -61,8 +67,12 @@ databaseService.start()
         return downloadAdapter.connect(false);
     })
     .then(() => {
-        console.log((downloadAdapter as QBittorrentDownloadAdapter)._cookie);
+        logger.debug((downloadAdapter as QBittorrentDownloadAdapter)._cookie);
         webServer = bootstrap(container);
+    })
+    .catch((error) =>  {
+        capture(error);
+        logger.error(error);
     });
 
 function beforeExitHandler() {
@@ -72,7 +82,8 @@ function beforeExitHandler() {
             process.exit(0);
         }, (error) => {
             webServer.close();
-            console.error(error);
+            capture(error);
+            logger.error(error);
             process.exit(-1);
         });
 }

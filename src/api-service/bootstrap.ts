@@ -26,8 +26,10 @@ import * as cors from 'cors';
 import './controller/FileController';
 import './controller/RpcController';
 import './controller/DownloadController';
+import pino from 'pino';
 
 const DEBUG = process.env.DEBUG === 'true';
+const logger = pino();
 
 export function bootstrap(container: Container): Server {
     const expressServer = new InversifyExpressServer(container);
@@ -45,6 +47,6 @@ export function bootstrap(container: Container): Server {
     const app = expressServer.build();
     const configManager = container.get<ConfigManager>(TYPES.ConfigManager);
     const server = app.listen(configManager.serverPort(), '0.0.0.0');
-    console.log('Server started on port ' + configManager.serverPort());
+    logger.info('Server started on port ' + configManager.serverPort());
     return server;
 }

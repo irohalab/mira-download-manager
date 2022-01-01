@@ -31,6 +31,10 @@ import { ConfigManager } from '../utils/ConfigManager';
 import { DownloaderType } from '../domain/DownloaderType';
 import { copyFile, mkdir } from 'fs/promises';
 import { FileManageService } from './FileManageService';
+import pino from 'pino';
+import { capture } from '../utils/sentry';
+
+const logger = pino();
 
 @injectable()
 export class DownloadService {
@@ -59,7 +63,7 @@ export class DownloadService {
             )
             .subscribe((job: DownloadJob | undefined) => {
                 this.downloadComplete(job).then(() => {
-                    console.log('download complete');
+                    logger.info('download complete');
                 });
             });
 
@@ -68,7 +72,7 @@ export class DownloadService {
                 filter(jobId => !!jobId)
             )
             .subscribe((jobId: string) => {
-                console.log(jobId + ' delete id');
+                logger.info(jobId + ' delete id');
             });
     }
 
@@ -84,9 +88,9 @@ export class DownloadService {
         }
         const downloadLocation = join(this._configManager.defaultDownloadLocation(), job.bangumiId);
         job.torrentId = await this._downloader.download(job.torrentUrl, downloadLocation);
-        console.log('download hash: ' + job.torrentId);
+        logger.debug('download hash: ' + job.torrentId);
         await this._databaseService.getJobRepository().save(job);
-        console.log('downloadJob id: ' + job.id);
+        logger.debug('downloadJob id: ' + job.id);
     }
 
     /**
@@ -108,7 +112,8 @@ export class DownloadService {
                 await mkdir(destDir, {recursive: true});
                 await copyFile(sourcePath, videoFileDestPath);
             } catch (ex) {
-                console.warn(ex);
+                capture(ex);
+                logger.warn(ex);
             }
             return videoFileDestPath;
         }

@@ -26,8 +26,11 @@ import { finished } from 'stream/promises';
 import { basename, dirname, extname } from 'path';
 import { nanoid } from 'nanoid';
 import { DatabaseService } from './DatabaseService';
+import pino from 'pino';
+import { capture } from '../utils/sentry';
 
 const CLEAN_UP_INTERVAL = 5 * 60000;
+const logger = pino();
 
 @injectable()
 export class FileManageService {
@@ -48,7 +51,8 @@ export class FileManageService {
                 try {
                     await copyFile(remoteFile.fileLocalPath, destPath);
                 } catch (err) {
-                    console.log(err);
+                    capture(err);
+                    logger.warn(err);
                 }
                 return;
             } else {
@@ -80,7 +84,7 @@ export class FileManageService {
             try {
                 await this.doCleanUp();
             } catch (e) {
-               console.warn(e);
+                logger.warn(e);
             }
             this.startCleanUp();
         }, CLEAN_UP_INTERVAL);
@@ -96,14 +100,14 @@ export class FileManageService {
         if (tasks && tasks.length > 0) {
             for (let task of tasks) {
                 try {
-                    console.log('try to clean up folder ' + task.directoryPath);
+                    logger.info('try to clean up folder ' + task.directoryPath);
                     await rmdir(task.directoryPath, {
                         maxRetries: 2,
                         retryDelay: 1000
                     });
                     await taskRepo.remove(task);
                 } catch (e) {
-                    console.warn(e);
+                    logger.warn(e);
                 }
             }
         }
