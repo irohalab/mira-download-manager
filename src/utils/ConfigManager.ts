@@ -24,6 +24,7 @@ export interface ConfigManager {
     delugePass(): string;
     defaultDownloadLocation(): string;
     amqpConfig(): Options.Connect;
+    amqpServerUrl(): string;
     getQBittorrentConfig(): QBittorrentConfig;
     databaseConnectionConfig(): ConnectionOptions;
 

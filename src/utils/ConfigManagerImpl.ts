@@ -46,6 +46,7 @@ type AppConfig = {
         user: string;
         password: string;
     }
+    amqpUrl: string;
     downloader: string;
     download_location: string;
     download_manager_id: string;
@@ -55,7 +56,7 @@ type AppConfig = {
     }
     qBittorrent: QBittorrentConfig;
     webserver: {
-        enabledHttps: boolean;
+        enableHttps: boolean;
         host: string;
         port: number;
     }
@@ -104,6 +105,14 @@ export class ConfigManagerImpl implements ConfigManager {
         return Object.assign({}, this._ormConfig) as ConnectionOptions;
     }
 
+    public amqpServerUrl(): string {
+        let amqpUrl = process.env.AMQP_URL;
+        if (!amqpUrl) {
+            amqpUrl = this._config.amqpUrl;
+        }
+        return amqpUrl;
+    }
+
     public amqpConfig(): Options.Connect {
         const host = this._config.amqp.host || 'localhost';
         const port = this._config.amqp.port || 5672;
@@ -122,7 +131,7 @@ export class ConfigManagerImpl implements ConfigManager {
         }
     }
     public enabledHttps(): boolean {
-        return this._config.webserver.enabledHttps || false;
+        return this._config.webserver.enableHttps || false;
     }
     public serverHost(): string {
         return this._config.webserver.host || 'localhost';

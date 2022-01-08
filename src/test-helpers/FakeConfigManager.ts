@@ -26,6 +26,10 @@ export class FakeConfigManager implements ConfigManager {
         return '';
     }
 
+    public amqpServerUrl(): string {
+        return undefined;
+    }
+
     public amqpConfig(): Options.Connect {
         return undefined;
     }

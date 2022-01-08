@@ -6,6 +6,9 @@ amqp:
   user: "guest"
   password: "guest"
 
+# amqp url has higher priority than amqp config object
+amqpUrl: ''
+
 downloader: 'qbittorrent' # Currently, only support 'deluge' and 'qbittorrent
 # download location support variable like ${home} ${cwd} ${project_root}
 download_location: '${home}/Videos/albireo'
@@ -21,7 +24,7 @@ qBittorrent:
 
 # used for composing the url for downloading output file from job executor, default is http://localhost:8000/output/
 webserver:
-  enabledHttps: false
+  enableHttps: false
   host: "localhost"
   port: 8081
 
