@@ -1,6 +1,6 @@
 {
    "name": "mira-download-manager",
-   "version": "0.2.0",
+   "version": "0.2.1",
    "description": "manage download of video files",
    "devDependencies": {
       "@types/amqplib": "^0.8.2",
@@ -30,7 +30,7 @@
       "pino": "^7.6.2",
       "reflect-metadata": "^0.1.10",
       "rxjs": "^7.3.0",
-      "typeorm": "0.2.37",
+      "typeorm": "0.2.41",
       "uuid": "^8.3.2"
    },
    "scripts": {
