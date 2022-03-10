@@ -63,6 +63,8 @@ export class FileController implements interfaces.Controller {
                 logger.debug(filename);
                 const fsStatObj = await stat(fileLocalPath);
                 if (!fsStatObj.isFile()) {
+                    // try to address issue
+                    capture({ fileLocalPath, fsStatObj, message: 'path is not a file' });
                     res.status(404).json({'message': this._message404});
                     return;
                 }
@@ -81,6 +83,7 @@ export class FileController implements interfaces.Controller {
                 });
             } catch (e) {
                 if (e.code === 'ENOENT') {
+                    capture(e);
                     res.status(404).json({'message': this._message404});
                 } else {
                     capture(e);
@@ -89,6 +92,8 @@ export class FileController implements interfaces.Controller {
                 }
             }
         } else {
+            // try to address issue
+            capture({ downloadJobId, message: 'job not found' });
             res.status(404).json({'message': this._message404});
         }
     }
