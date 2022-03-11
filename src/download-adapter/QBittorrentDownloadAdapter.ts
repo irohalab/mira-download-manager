@@ -40,6 +40,9 @@ import { capture } from '../utils/sentry';
 const TMP_ID_SIZE = 8;
 const REFRESH_INFO_INTERVAL = 5000;
 
+const RETRY_DELAY = 5000;
+const MAX_RETRY_COUNT = 10;
+
 const sleep = promisify(setTimeout);
 const logger = pino();
 
@@ -51,13 +54,29 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
     private _statusChangeSubject = new BehaviorSubject<string>(null);
     private _deleteSubject = new BehaviorSubject<string>(null);
 
+    private _lastError: Error;
+    private _retryCount: number = 0;
+
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 @inject(TYPES.DatabaseService) private _databaseService: DatabaseService) {
         this._baseUrl = this._configManager.getQBittorrentConfig().api_url;
     }
 
-    public async connect(enableEvent:boolean): Promise<void> {
-        await this.login();
+    public async connect(enableEvent: boolean): Promise<void> {
+        try {
+            this._retryCount = 0;
+            await this.login();
+        } catch (exception: any) {
+            logger.warn(exception);
+            if (this._retryCount < MAX_RETRY_COUNT) {
+                await sleep(RETRY_DELAY);
+                this._retryCount++;
+                await this.connect(enableEvent);
+            } else {
+                throw exception;
+            }
+        }
+
         if (enableEvent) {
             this.checkTorrentStatus();
         }
@@ -208,6 +227,16 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
                             this.checkTorrentStatus();
                         }, REFRESH_INFO_INTERVAL);
                     });
+            })
+            .catch((error) => {
+                if (!this._lastError || (error && error.message !== this._lastError.message)) {
+                    capture(error);
+                }
+                // reschedule checkTorrentStatus() in case there is an error.
+                clearTimeout(this._timerId);
+                this._timerId = setTimeout(() => {
+                    this.checkTorrentStatus();
+                }, REFRESH_INFO_INTERVAL);
             });
     }
 

@@ -101,14 +101,16 @@ export class FileController implements interfaces.Controller {
     @httpDelete('/torrent/:downloadTaskId')
     public async removeTorrent(@requestParam('downloadTaskId') downloadTaskId: string,
                                @response() res: ExpressResponse): Promise<void> {
-        logger.debug('remove torrent' + downloadTaskId);
+        logger.info('remove torrent' + downloadTaskId);
         const repo = this._database.getJobRepository();
         const job = await repo.findOne({downloadTaskMessageId: downloadTaskId});
         if (job) {
             const torrentId = job.torrentId;
             await this._downloader.remove(torrentId, true);
+            capture({message: 'remove torrent', downloadTaskId: downloadTaskId, torrentId: torrentId, job: job});
             res.status(200).json({'message': 'ok'});
         } else {
+            capture({ downloadTaskId, message: 'unable to remove torrent, job not found'});
             res.status(404).json({'message': this._message404});
         }
     }
