@@ -33,8 +33,10 @@ import { ConfigManager } from './utils/ConfigManager';
 import { FileManageService } from './service/FileManageService';
 import axios from 'axios';
 import { promisify } from 'util';
+import pino from 'pino';
 
 const sleep = promisify(setTimeout);
+const logger = pino();
 
 @injectable()
 export class DownloadManager {
@@ -56,7 +58,7 @@ export class DownloadManager {
             try {
                 await this.onVideoManagerMessage(msg as VideoManagerMessage);
             } catch (ex) {
-                console.error(ex);
+                logger.error(ex);
             }
             return true;
         });
@@ -65,7 +67,7 @@ export class DownloadManager {
             try {
                 await this.onDownloadTask(msg as DownloadTaskMessage);
             } catch (ex) {
-                console.log(ex);
+                logger.warn(ex);
                 await sleep(3000);
                 return false;
             }
@@ -88,11 +90,13 @@ export class DownloadManager {
         const savePath = join(this._configManager.defaultDownloadLocation(), msg.bangumiId);
         let videoFileDestPath: string;
         if (msg.isProcessed) {
+            logger.info({message: 'video processed', video_id: msg.videoId, filename: msg.processedFile});
             // download from video manager
             const filename = FileManageService.processFilename(basename(msg.processedFile.filename));
             videoFileDestPath = join(savePath, filename);
             await this._fileManageService.download(msg.processedFile, videoFileDestPath, msg.jobExecutorId);
         } else {
+            logger.info({message: 'not processed', video_id: msg.videoId});
             videoFileDestPath = await this._downloadService.copyVideoFile(msg.downloadTaskId, savePath);
         }
         // all work is done at download manager side.
