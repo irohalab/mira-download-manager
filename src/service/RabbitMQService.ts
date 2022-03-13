@@ -24,15 +24,23 @@ import { Message } from '../entity/Message';
 import { TYPES } from '../TYPES';
 import pino from 'pino';
 import { capture } from '../utils/sentry';
+import { isFatalError } from 'amqplib/lib/connection';
 
 const logger = pino();
 const CHECK_INTERVAL = 5000;
 
+interface QueueSetting {
+    bindingKey: string;
+    exchangeName: string;
+    prefetch: boolean;
+}
+
 @injectable()
 export class RabbitMQService {
     private _connection: Connection;
+    private _exchanges = new Map<string, string>();
     private _channels = new Map<string, ConfirmChannel>();
-    private _queues = new Map<string, string>();
+    private _queues = new Map<string, QueueSetting>();
     private _connected: boolean;
 
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
@@ -48,7 +56,7 @@ export class RabbitMQService {
             }
         });
         this._connection.on('close', (error: any) => {
-            if (this._connected && error) {
+            if (this._connected && isFatalError(error)) {
                 capture(error);
                 this.reconnect();
             }
@@ -61,6 +69,16 @@ export class RabbitMQService {
         logger.warn('reconnect in 5 seconds');
         setTimeout(() => {
             this.connectAsync()
+                .then(async () => {
+                    for (const exchangeName of this._channels.keys()) {
+                        const exchangeType = this._exchanges.get(exchangeName);
+                        await this.initPublisher(exchangeName, exchangeType);
+                    }
+                    for (let [queueName, queueSetting] of this._queues.entries()) {
+                        const exchangeType = this._exchanges.get(queueSetting.exchangeName);
+                        await this.initConsumer(queueSetting.exchangeName, exchangeType, queueName, queueSetting.bindingKey, queueSetting.prefetch)
+                    }
+                })
                 .then(() => {
                     logger.info('reconnect successfully');
                 })
@@ -77,6 +95,7 @@ export class RabbitMQService {
         }
         const channel = await this._connection.createConfirmChannel();
         this._channels.set(exchangeName, channel);
+        this._exchanges.set(exchangeName, exchangeType);
         await channel.assertExchange(exchangeName, exchangeType);
     }
 
@@ -100,7 +119,8 @@ export class RabbitMQService {
             await channel.prefetch(1);
         }
         await channel.bindQueue(q.queue, exchangeName, bindingKey);
-        this._queues.set(queueName, exchangeName);
+        this._exchanges.set(exchangeName, exchangeType);
+        this._queues.set(queueName, {bindingKey, exchangeName, prefetch});
     }
 
     public publish(exchangeName: string, routingKey: string, message: any): Promise<boolean> {
@@ -129,7 +149,7 @@ export class RabbitMQService {
     }
 
     public async consume(queueName: string, onMessage: (msg: MQMessage) => Promise<boolean>): Promise<string> {
-        const exchangeName = this._queues.get(queueName);
+        const exchangeName = this._queues.get(queueName).exchangeName;
         const channel = this._channels.get(exchangeName);
         const result = await channel.consume(queueName, async (msg) => {
             if (msg) {
