@@ -40,6 +40,11 @@ export function capture(obj: any, context?: {[key: string]: string}) {
             for (const [k, v] of Object.entries(context)) {
                 scope.setTag(k, v);
             }
+            if (obj instanceof Error) {
+                sentryCaptureException(obj, scope);
+            } else {
+                sentryCaptureMessage(obj, scope);
+            }
         }
         if (obj instanceof Error) {
             sentryCaptureException(obj);
