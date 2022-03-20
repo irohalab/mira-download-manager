@@ -35,12 +35,19 @@ interface QueueSetting {
     prefetch: boolean;
 }
 
+interface Consumer {
+    queueName: string;
+    onMessage: (msg: MQMessage) => Promise<boolean>;
+    consumerTag: string;
+}
+
 @injectable()
 export class RabbitMQService {
     private _connection: Connection;
     private _exchanges = new Map<string, string>();
     private _channels = new Map<string, ConfirmChannel>();
     private _queues = new Map<string, QueueSetting>();
+    private _consumers = new Map<string, Consumer>();
     private _connected: boolean;
 
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
@@ -50,12 +57,11 @@ export class RabbitMQService {
     private async connectAsync(): Promise<void> {
         this._connection = await connect(this._configManager.amqpServerUrl() || this._configManager.amqpConfig());
         this._connection.on('error', (error: any) => {
-            if (this._connected) {
-                capture(error);
-                this.reconnect();
-            }
+            logger.error(error, {message: 'connection error on amqp', line:60});
+            capture(error);
         });
         this._connection.on('close', (error: any) => {
+            logger.error(error || 'closed no error', {message: 'connection closed on amqp', line:67});
             if (this._connected && isFatalError(error)) {
                 capture(error);
                 this.reconnect();
@@ -74,9 +80,11 @@ export class RabbitMQService {
                         const exchangeType = this._exchanges.get(exchangeName);
                         await this.initPublisher(exchangeName, exchangeType);
                     }
-                    for (let [queueName, queueSetting] of this._queues.entries()) {
+                    for (const [queueName, queueSetting] of this._queues.entries()) {
                         const exchangeType = this._exchanges.get(queueSetting.exchangeName);
-                        await this.initConsumer(queueSetting.exchangeName, exchangeType, queueName, queueSetting.bindingKey, queueSetting.prefetch)
+                        await this.initConsumer(queueSetting.exchangeName, exchangeType, queueName, queueSetting.bindingKey, queueSetting.prefetch);
+                        const consumer = this._consumers.get(queueName);
+                        consumer.consumerTag = await this.setupConsumer(consumer);
                     }
                 })
                 .then(() => {
@@ -90,12 +98,7 @@ export class RabbitMQService {
     };
 
     public async initPublisher(exchangeName: string, exchangeType: string): Promise<void> {
-        if (!this._connection || !this._connected) {
-            await this.connectAsync();
-        }
-        const channel = await this._connection.createConfirmChannel();
-        this._channels.set(exchangeName, channel);
-        this._exchanges.set(exchangeName, exchangeType);
+        const channel = await this.addChannel(exchangeName, exchangeType);
         await channel.assertExchange(exchangeName, exchangeType);
     }
 
@@ -108,62 +111,89 @@ export class RabbitMQService {
      * @param prefetch, see Fair dispatch in the tutorial (https://www.rabbitmq.com/tutorials/tutorial-two-javascript.html)
      */
     public async initConsumer(exchangeName: string, exchangeType: string, queueName: string, bindingKey: string = '', prefetch = false): Promise<void> {
-        if (!this._connection || !this._connected) {
-            await this.connectAsync();
-        }
-        const channel = await this._connection.createConfirmChannel();
-        this._channels.set(exchangeName, channel);
+        const channel = await this.addChannel(exchangeName, exchangeType);
         await channel.assertExchange(exchangeName, exchangeType);
         const q = await channel.assertQueue(queueName);
         if (prefetch) {
             await channel.prefetch(1);
         }
         await channel.bindQueue(q.queue, exchangeName, bindingKey);
-        this._exchanges.set(exchangeName, exchangeType);
         this._queues.set(queueName, {bindingKey, exchangeName, prefetch});
     }
 
     public publish(exchangeName: string, routingKey: string, message: any): Promise<boolean> {
         const channel = this._channels.get(exchangeName);
-        return new Promise<boolean>((resolve, reject) => {
-            channel.publish(
-                exchangeName,
-                routingKey,
-                Buffer.from(JSON.stringify(message), 'utf-8'),
-                {},
-                (err, ok) => {
-                    if (err !== null) {
-                        // TODO: currently not reachable, need to figure out how to test this piece of code.
-                        logger.warn('message nacked');
-                        this.saveMessage(exchangeName, routingKey, message)
-                            .then(() => {
-                                logger.info('message saved, will be resent')
-                            });
-                        reject(err);
-                    } else {
-                        resolve(true);
-                        logger.debug('message acked')
-                    }
+        if (channel) {
+            try {
+                return new Promise<boolean>((resolve, reject) => {
+                    channel.publish(
+                        exchangeName,
+                        routingKey,
+                        Buffer.from(JSON.stringify(message), 'utf-8'),
+                        {},
+                        (err, ok) => {
+                            if (err !== null) {
+                                // TODO: currently not reachable, need to figure out how to test this piece of code.
+                                logger.warn('message nacked');
+                                this.saveMessage(exchangeName, routingKey, message)
+                                    .then(() => {
+                                        logger.info('message saved, will be resent')
+                                    });
+                                reject(err);
+                            } else {
+                                resolve(true);
+                                logger.debug('message acked')
+                            }
+                        });
                 });
-        });
+            } catch (e: any) {
+                logger.error(e);
+                capture(e, {stack: e.stack, line: '143', exchangeName, routingKey, message});
+                return this.saveMessage(exchangeName, routingKey, message)
+                    .then(() => {
+                        return false;
+                    });
+            }
+        }
     }
 
     public async consume(queueName: string, onMessage: (msg: MQMessage) => Promise<boolean>): Promise<string> {
-        const exchangeName = this._queues.get(queueName).exchangeName;
+        const consumer = { queueName, onMessage, consumerTag: null };
+        this._consumers.set(queueName, consumer);
+        while (consumer.consumerTag == null) {
+            consumer.consumerTag = await this.setupConsumer(consumer);
+        }
+        return consumer.consumerTag;
+    }
+
+    private async setupConsumer(consumer: Consumer) {
+        const exchangeName = this._queues.get(consumer.queueName).exchangeName;
         const channel = this._channels.get(exchangeName);
-        const result = await channel.consume(queueName, async (msg) => {
-            if (msg) {
-                const mqMsg = JSON.parse(msg.content.toString('utf-8')) as MQMessage;
-                if (await onMessage(mqMsg)) {
-                    channel.ack(msg);
-                } else {
-                    channel.nack(msg);
+        if (channel) {
+            try {
+                const result = await channel.consume(consumer.queueName, async (msg) => {
+                    if (msg) {
+                        const mqMsg = JSON.parse(msg.content.toString('utf-8')) as MQMessage;
+                        if (await consumer.onMessage(mqMsg)) {
+                            channel.ack(msg);
+                        } else {
+                            channel.nack(msg);
+                        }
+                    } else {
+                        // TODO: Handle the consumer cancel in this service
+                        consumer.consumerTag = await this.setupConsumer(consumer);
+                    }
+                });
+                return result.consumerTag;
+            } catch (error: any) {
+                if (error.isOperational && error.message.includes('BasicConsume; 404')){
+                    return null;
                 }
-            } else {
-                // TODO: Handle the consumer cancel in this service
+                throw error;
             }
-        });
-        return result.consumerTag;
+        } else {
+            return null;
+        }
     }
 
     private async saveMessage(exchange: string, routingKey: string, content: any): Promise<void> {
@@ -193,5 +223,25 @@ export class RabbitMQService {
             }
         }
         setTimeout(this.resendMessageInFailedQueue.bind(this), CHECK_INTERVAL);
+    }
+
+    private async addChannel(exchangeName: string, exchangeType: string): Promise<ConfirmChannel> {
+        if (!this._connection || !this._connected) {
+            await this.connectAsync();
+        }
+        const channel = await this._connection.createConfirmChannel();
+        this._channels.set(exchangeName, channel);
+        this._exchanges.set(exchangeName, exchangeType);
+        channel.on('close', () => this.onChannelClose(exchangeName));
+        channel.on('error', (error) => this.onChannelError(exchangeName, error));
+        return channel;
+    }
+
+    private onChannelClose(exchangeName): void {
+        this._channels.set(exchangeName, null);
+    }
+    private onChannelError(exchangeName, error: any): void {
+        this._channels.set(exchangeName, null);
+        capture(error, {stack: error.stack, line: '215', exchangeName});
     }
 }
