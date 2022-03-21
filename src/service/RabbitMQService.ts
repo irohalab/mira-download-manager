@@ -68,6 +68,16 @@ export class RabbitMQService {
             }
         })
         this._connected = true;
+        for (const exchangeName of this._channels.keys()) {
+            const exchangeType = this._exchanges.get(exchangeName);
+            await this.initPublisher(exchangeName, exchangeType);
+        }
+        for (const [queueName, queueSetting] of this._queues.entries()) {
+            const exchangeType = this._exchanges.get(queueSetting.exchangeName);
+            await this.initConsumer(queueSetting.exchangeName, exchangeType, queueName, queueSetting.bindingKey, queueSetting.prefetch);
+            const consumer = this._consumers.get(queueName);
+            consumer.consumerTag = await this.setupConsumer(consumer);
+        }
         await this.resendMessageInFailedQueue();
     }
 
@@ -75,18 +85,6 @@ export class RabbitMQService {
         logger.warn('reconnect in 5 seconds');
         setTimeout(() => {
             this.connectAsync()
-                .then(async () => {
-                    for (const exchangeName of this._channels.keys()) {
-                        const exchangeType = this._exchanges.get(exchangeName);
-                        await this.initPublisher(exchangeName, exchangeType);
-                    }
-                    for (const [queueName, queueSetting] of this._queues.entries()) {
-                        const exchangeType = this._exchanges.get(queueSetting.exchangeName);
-                        await this.initConsumer(queueSetting.exchangeName, exchangeType, queueName, queueSetting.bindingKey, queueSetting.prefetch);
-                        const consumer = this._consumers.get(queueName);
-                        consumer.consumerTag = await this.setupConsumer(consumer);
-                    }
-                })
                 .then(() => {
                     logger.info('reconnect successfully');
                 })
@@ -189,7 +187,9 @@ export class RabbitMQService {
                 if (error.isOperational && error.message.includes('BasicConsume; 404')){
                     return null;
                 }
-                throw error;
+                logger.error(error);
+                capture(error);
+                return null;
             }
         } else {
             return null;
