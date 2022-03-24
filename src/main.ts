@@ -18,11 +18,11 @@ import 'reflect-metadata';
 import { capture, setup as setupSentry } from './utils/sentry';
 import { Container } from 'inversify';
 import { ConfigManager } from './utils/ConfigManager';
-import { TYPES } from './TYPES';
+import { TYPES_DM } from './TYPES_DM';
 import { ConfigManagerImpl } from './utils/ConfigManagerImpl';
 import { DatabaseService } from './service/DatabaseService';
 import { DatabaseServiceImpl } from './service/DatabaseServiceImpl';
-import { RabbitMQService } from './service/RabbitMQService';
+import { RabbitMQService, TYPES } from '@irohalab/mira-shared';
 import { FileManageService } from './service/FileManageService';
 import { DownloadService } from './service/DownloadService';
 import { DownloadManager } from './DownloadManager';
@@ -45,10 +45,10 @@ const downloader = configManager.downloader() as DownloaderType;
 
 switch (downloader) {
     case DownloaderType.Deluge:
-        container.bind<DownloadAdapter>(TYPES.Downloader).to(DelugeDownloadAdapter).inSingletonScope();
+        container.bind<DownloadAdapter>(TYPES_DM.Downloader).to(DelugeDownloadAdapter).inSingletonScope();
         break;
     case DownloaderType.qBittorrent:
-        container.bind<DownloadAdapter>(TYPES.Downloader).to(QBittorrentDownloadAdapter).inSingletonScope();
+        container.bind<DownloadAdapter>(TYPES_DM.Downloader).to(QBittorrentDownloadAdapter).inSingletonScope();
         break;
     default:
         throw new Error(`no downloader with name: ${downloader} is found`);

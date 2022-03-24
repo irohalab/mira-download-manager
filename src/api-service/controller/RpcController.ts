@@ -17,12 +17,11 @@
 import { Response as ExpressResponse } from 'express';
 import { controller, httpPost, interfaces, requestBody, response } from 'inversify-express-utils';
 import { inject } from 'inversify';
-import { CORE_TASK_EXCHANGE, DOWNLOAD_TASK, TYPES } from '../../TYPES';
 import { ConfigManager } from '../../utils/ConfigManager';
 import { DatabaseService } from '../../service/DatabaseService';
-import { RabbitMQService } from '../../service/RabbitMQService';
 import { inspect } from 'util';
 import pino from 'pino';
+import { CORE_TASK_EXCHANGE, DOWNLOAD_TASK, RabbitMQService, TYPES } from '@irohalab/mira-shared';
 
 const logger = pino();
 

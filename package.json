@@ -1,6 +1,6 @@
 {
    "name": "mira-download-manager",
-   "version": "0.2.8",
+   "version": "0.3.0",
    "description": "manage download of video files",
    "devDependencies": {
       "@types/amqplib": "^0.8.2",
@@ -17,6 +17,7 @@
    },
    "dependencies": {
       "@sentry/node": "^6.16.1",
+      "@irohalab/mira-shared": "1.1.0",
       "amqplib": "^0.8.0",
       "axios": "^0.21.2",
       "cors": "^2.8.5",

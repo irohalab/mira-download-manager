@@ -17,13 +17,13 @@
 import { DownloadAdapter } from './DownloadAdapter';
 import { Observable } from 'rxjs';
 import { inject, injectable } from 'inversify';
-import { TYPES } from '../TYPES';
 import { ConfigManager } from '../utils/ConfigManager';
 import axios, { AxiosResponse } from 'axios';
 import { v4 as uuid4 } from 'uuid';
 import { URL } from 'url';
 import { nanoid } from 'nanoid';
 import { join } from 'path';
+import { TYPES } from '@irohalab/mira-shared';
 
 type DelugeRPCResponse = {
     result: any;

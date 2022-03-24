@@ -15,13 +15,10 @@
  */
 
 import { DownloadJobRepository } from '../repository/DownloadJobRepository';
-import { MessageRepository } from '../repository/MessageRepository';
 import { CleanUpTaskRepository } from '../repository/CleanUpTaskRepository';
+import { BaseDatabaseService } from '@irohalab/mira-shared';
 
-export interface DatabaseService {
-    start(): Promise<void>;
-    stop(): Promise<void>;
+export interface DatabaseService extends BaseDatabaseService {
     getJobRepository(): DownloadJobRepository;
-    getMessageRepository(): MessageRepository;
     getCleanUpTaskRepository(): CleanUpTaskRepository;
 }

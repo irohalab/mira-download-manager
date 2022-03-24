@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { MQMessage } from './MQMessage';
+import { MQMessage } from '@irohalab/mira-shared';
 import { FileMapping } from './FileMapping';
 
 export class DownloadTaskMessage implements MQMessage {

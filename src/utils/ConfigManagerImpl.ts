@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { ConfigManager } from './ConfigManager';
 import { load as loadYaml } from 'js-yaml';
 import { join, resolve } from 'path';
 import { readFileSync } from 'fs';
@@ -23,6 +22,7 @@ import { QBittorrentConfig } from '../domain/QBittorrentConfig';
 import { ConnectionOptions } from 'typeorm';
 import { Options } from 'amqplib';
 import * as os from 'os';
+import { ConfigManager } from './ConfigManager';
 
 type OrmConfig = {
     type: string;

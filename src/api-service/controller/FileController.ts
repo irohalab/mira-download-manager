@@ -25,7 +25,7 @@ import {
     response
 } from 'inversify-express-utils';
 import { inject } from 'inversify';
-import { TYPES } from '../../TYPES';
+import { TYPES_DM } from '../../TYPES_DM';
 import { ConfigManager } from '../../utils/ConfigManager';
 import { join, basename } from 'path';
 import { stat } from 'fs/promises';
@@ -34,6 +34,7 @@ import { DownloadAdapter } from '../../download-adapter/DownloadAdapter';
 import { QBittorrentDownloadAdapter } from '../../download-adapter/QBittorrentDownloadAdapter';
 import pino from 'pino';
 import { capture } from '../../utils/sentry';
+import { TYPES } from '@irohalab/mira-shared';
 
 const logger = pino();
 
@@ -43,7 +44,7 @@ export class FileController implements interfaces.Controller {
     private readonly _message404 = 'file not found';
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 @inject(TYPES.DatabaseService) private _database: DatabaseService,
-                @inject(TYPES.Downloader) private _downloader: DownloadAdapter) {
+                @inject(TYPES_DM.Downloader) private _downloader: DownloadAdapter) {
         // this._videoTempPath = this._configManager.videoFileTempDir();
     }
 

@@ -15,7 +15,7 @@
  */
 
 import { inject, injectable } from 'inversify';
-import { TYPES } from '../TYPES';
+import { TYPES_DM } from '../TYPES_DM';
 import { ConfigManager } from '../utils/ConfigManager';
 import { RemoteFile } from '../domain/RemoteFile';
 import { URL } from 'url';
@@ -28,6 +28,7 @@ import { nanoid } from 'nanoid';
 import { DatabaseService } from './DatabaseService';
 import pino from 'pino';
 import { capture } from '../utils/sentry';
+import { TYPES } from '@irohalab/mira-shared';
 
 const CLEAN_UP_INTERVAL = 5 * 60000;
 const logger = pino();

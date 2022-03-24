@@ -15,20 +15,23 @@
  */
 
 import { inject, injectable } from 'inversify';
-import { RabbitMQService } from './service/RabbitMQService';
 import {
     CORE_TASK_EXCHANGE,
-    DOWNLOAD_MESSAGE_EXCHANGE, DOWNLOAD_TASK, DOWNLOAD_TASK_QUEUE, TYPES,
+    DOWNLOAD_MESSAGE_EXCHANGE,
+    DOWNLOAD_TASK,
+    DOWNLOAD_TASK_QUEUE,
+    RabbitMQService,
+    TYPES,
     VIDEO_MANAGER_EXCHANGE,
     VIDEO_MANAGER_GENERAL,
     VIDEO_MANAGER_QUEUE
-} from './TYPES';
+} from '@irohalab/mira-shared';
 import { DownloadTaskMessage } from './domain/DownloadTaskMessage';
 import { VideoManagerMessage } from './domain/VideoManagerMessage';
 import { DatabaseService } from './service/DatabaseService';
 import { DownloadService } from './service/DownloadService';
 import { DownloadJob } from './entity/DownloadJob';
-import { join, basename } from 'path';
+import { basename, join } from 'path';
 import { ConfigManager } from './utils/ConfigManager';
 import { FileManageService } from './service/FileManageService';
 import axios from 'axios';

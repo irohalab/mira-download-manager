@@ -18,7 +18,7 @@ import 'reflect-metadata';
 import { capture, setup as setupSentry } from './utils/sentry';
 import { Container } from 'inversify';
 import { ConfigManager } from './utils/ConfigManager';
-import { CORE_TASK_EXCHANGE, TYPES } from './TYPES';
+import { TYPES_DM } from './TYPES_DM';
 import { ConfigManagerImpl } from './utils/ConfigManagerImpl';
 import { DatabaseService } from './service/DatabaseService';
 import { DatabaseServiceImpl } from './service/DatabaseServiceImpl';
@@ -27,10 +27,10 @@ import { Server } from 'http';
 import { DownloadAdapter } from './download-adapter/DownloadAdapter';
 import { DelugeDownloadAdapter } from './download-adapter/DelugeDownloadAdapter';
 import { QBittorrentDownloadAdapter } from './download-adapter/QBittorrentDownloadAdapter';
-import { RabbitMQService } from './service/RabbitMQService';
 import { DownloaderType } from './domain/DownloaderType';
 import pino from 'pino';
 import { hostname } from 'os';
+import { CORE_TASK_EXCHANGE, RabbitMQService, TYPES } from '@irohalab/mira-shared';
 
 const logger = pino();
 setupSentry(`download_manager_api_server_${hostname()}`);
@@ -44,17 +44,17 @@ const downloader = container.get<ConfigManager>(TYPES.ConfigManager).downloader(
 
 switch (downloader) {
     case DownloaderType.Deluge:
-        container.bind<DownloadAdapter>(TYPES.Downloader).to(DelugeDownloadAdapter).inSingletonScope();
+        container.bind<DownloadAdapter>(TYPES_DM.Downloader).to(DelugeDownloadAdapter).inSingletonScope();
         break;
     case DownloaderType.qBittorrent:
-        container.bind<DownloadAdapter>(TYPES.Downloader).to(QBittorrentDownloadAdapter).inSingletonScope();
+        container.bind<DownloadAdapter>(TYPES_DM.Downloader).to(QBittorrentDownloadAdapter).inSingletonScope();
         break;
     default:
         throw new Error(`no downloader with name: ${downloader} is found`);
 }
 
 const databaseService = container.get<DatabaseService>(TYPES.DatabaseService);
-const downloadAdapter = container.get<DownloadAdapter>(TYPES.Downloader);
+const downloadAdapter = container.get<DownloadAdapter>(TYPES_DM.Downloader);
 const rabbitMQService = container.get<RabbitMQService>(RabbitMQService);
 
 let webServer: Server;

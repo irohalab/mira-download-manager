@@ -14,59 +14,24 @@
  * limitations under the License.
  */
 
-import { DatabaseService } from './DatabaseService';
 import { inject, injectable } from 'inversify';
-import { TYPES } from '../TYPES';
+import { TYPES_DM } from '../TYPES_DM';
 import { ConfigManager } from '../utils/ConfigManager';
 import { DownloadJobRepository } from '../repository/DownloadJobRepository';
-import { Connection, createConnection, getCustomRepository } from 'typeorm';
-import { MessageRepository } from '../repository/MessageRepository';
+import { getCustomRepository } from 'typeorm';
 import { CleanUpTaskRepository } from '../repository/CleanUpTaskRepository';
-import { promisify } from 'util';
-import pino from 'pino';
-
-const RETRY_DELAY = 5000;
-const MAX_RETRY_COUNT = 10;
-const sleep = promisify(setTimeout);
-
-const logger = pino();
+import { DatabaseService } from './DatabaseService';
+import { BasicDatabaseServiceImpl, TYPES } from '@irohalab/mira-shared';
 
 @injectable()
-export class DatabaseServiceImpl implements DatabaseService {
-    private _connection: Connection;
-    private _retryCount: number = 0;
+export class DatabaseServiceImpl extends BasicDatabaseServiceImpl implements DatabaseService {
 
-    constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager) {
-    }
-
-    public async start(): Promise<void> {
-        try {
-            this._connection = await createConnection(this._configManager.databaseConnectionConfig());
-            this._retryCount = 0;
-        } catch (exception) {
-            logger.warn(exception);
-            if (this._retryCount < MAX_RETRY_COUNT) {
-                await sleep(RETRY_DELAY);
-                this._retryCount++;
-                await this.start();
-            } else {
-                throw exception;
-            }
-        }
-        return Promise.resolve(undefined);
-    }
-
-    public async stop(): Promise<void> {
-        await this._connection.close();
-        return Promise.resolve(undefined);
+    constructor(@inject(TYPES.ConfigManager) configManager: ConfigManager) {
+        super(configManager);
     }
 
     public getJobRepository(): DownloadJobRepository {
         return getCustomRepository<DownloadJobRepository>(DownloadJobRepository);
-    }
-
-    public getMessageRepository(): MessageRepository {
-        return getCustomRepository<MessageRepository>(MessageRepository);
     }
 
     public getCleanUpTaskRepository(): CleanUpTaskRepository {

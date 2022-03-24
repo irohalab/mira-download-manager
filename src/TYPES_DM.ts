@@ -14,24 +14,6 @@
  * limitations under the License.
  */
 
-export const TYPES = {
-    ConfigManager: Symbol.for('ConfigManager'),
-    DatabaseService: Symbol.for('DatabaseService'),
+export const TYPES_DM = {
     Downloader: Symbol.for('Downloader')
 };
-
-export const DOWNLOAD_MESSAGE_EXCHANGE = 'download_message';
-export const VIDEO_MANAGER_EXCHANGE = 'video_manager';
-export const CORE_TASK_EXCHANGE = 'core_task';
-
-/**
- * Queues
- */
-export const VIDEO_MANAGER_QUEUE = 'video_manager_queue';
-export const DOWNLOAD_TASK_QUEUE = 'download_task_queue';
-
-/**
- * Binding Keys
- */
-export const VIDEO_MANAGER_GENERAL = 'general';
-export const DOWNLOAD_TASK = 'download_task';

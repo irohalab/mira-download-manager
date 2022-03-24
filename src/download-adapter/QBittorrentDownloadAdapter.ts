@@ -17,7 +17,7 @@
 import { DownloadAdapter } from './DownloadAdapter';
 import { inject, injectable } from 'inversify';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { TYPES } from '../TYPES';
+import { TYPES_DM } from '../TYPES_DM';
 import { ConfigManager } from '../utils/ConfigManager';
 import axios from 'axios';
 import * as FormData from 'form-data';
@@ -36,6 +36,7 @@ import { getTorrentHash } from '../utils/torrent-utils';
 import { promisify } from 'util';
 import pino from 'pino';
 import { capture } from '../utils/sentry';
+import { TYPES } from '@irohalab/mira-shared';
 
 const TMP_ID_SIZE = 8;
 const REFRESH_INFO_INTERVAL = 5000;

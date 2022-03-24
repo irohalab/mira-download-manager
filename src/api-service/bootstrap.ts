@@ -18,7 +18,6 @@
 import { Container } from 'inversify';
 import { InversifyExpressServer } from 'inversify-express-utils';
 import { ConfigManager } from '../utils/ConfigManager';
-import { TYPES } from '../TYPES';
 import { Server } from 'http';
 import * as bodyParser from 'body-parser';
 import * as cors from 'cors';
@@ -27,6 +26,7 @@ import './controller/FileController';
 import './controller/RpcController';
 import './controller/DownloadController';
 import pino from 'pino';
+import { TYPES } from '@irohalab/mira-shared';
 
 const DEBUG = process.env.DEBUG === 'true';
 const logger = pino();

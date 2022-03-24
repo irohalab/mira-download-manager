@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { controller, httpGet, interfaces, queryParam, response } from 'inversify-express-utils';
+import { controller, httpGet, interfaces, queryParam } from 'inversify-express-utils';
 import { DatabaseService } from '../../service/DatabaseService';
 import { JobStatus } from '../../domain/JobStatus';
 import { ResponseWrapper } from '../ResponseWrapper';
 import { DownloadJob } from '../../entity/DownloadJob';
 import { inject } from 'inversify';
-import { TYPES } from '../../TYPES';
+import { TYPES } from '@irohalab/mira-shared';
 
 @controller('/download')
 export class DownloadController implements interfaces.Controller {
