@@ -7,7 +7,7 @@ amqp:
   password: "guest"
 
 # amqp url has higher priority than amqp config object
-amqpUrl: 'amqps://plbteqnr:Fr4IoVY6TGgh6M7In3mM2WwtBbNhHFYJ@beaver.rmq.cloudamqp.com/plbteqnr'
+amqpUrl: ''
 
 downloader: 'qbittorrent' # Currently, only support 'deluge' and 'qbittorrent
 # download location support variable like ${home} ${cwd} ${project_root}
