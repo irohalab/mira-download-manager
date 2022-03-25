@@ -22,7 +22,6 @@ import { filter, mergeMap } from 'rxjs/operators';
 import { JobStatus } from '../domain/JobStatus';
 import { DownloadJob } from '../entity/DownloadJob';
 import { v4 as uuid4 } from 'uuid';
-import { RemoteFile } from '../domain/RemoteFile';
 import { basename, join, dirname } from 'path';
 import { TorrentFile } from '../domain/TorrentFile';
 import { ConfigManager } from '../utils/ConfigManager';
@@ -31,7 +30,13 @@ import { copyFile, mkdir } from 'fs/promises';
 import { FileManageService } from './FileManageService';
 import pino from 'pino';
 import { capture } from '../utils/sentry';
-import { DownloadMQMessage, RabbitMQService, TYPES, DOWNLOAD_MESSAGE_EXCHANGE } from '@irohalab/mira-shared';
+import {
+    DownloadMQMessage,
+    RabbitMQService,
+    TYPES,
+    DOWNLOAD_MESSAGE_EXCHANGE,
+    RemoteFile
+} from '@irohalab/mira-shared';
 
 const logger = pino();
 

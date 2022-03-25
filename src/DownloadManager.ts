@@ -24,10 +24,9 @@ import {
     TYPES,
     VIDEO_MANAGER_EXCHANGE,
     VIDEO_MANAGER_GENERAL,
-    VIDEO_MANAGER_QUEUE
+    VIDEO_MANAGER_QUEUE, VideoManagerMessage
 } from '@irohalab/mira-shared';
 import { DownloadTaskMessage } from './domain/DownloadTaskMessage';
-import { VideoManagerMessage } from './domain/VideoManagerMessage';
 import { DatabaseService } from './service/DatabaseService';
 import { DownloadService } from './service/DownloadService';
 import { DownloadJob } from './entity/DownloadJob';
