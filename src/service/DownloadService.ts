@@ -29,13 +29,12 @@ import { DownloaderType } from '../domain/DownloaderType';
 import { copyFile, mkdir } from 'fs/promises';
 import { FileManageService } from './FileManageService';
 import pino from 'pino';
-import { capture } from '../utils/sentry';
 import {
     DownloadMQMessage,
     RabbitMQService,
     TYPES,
     DOWNLOAD_MESSAGE_EXCHANGE,
-    RemoteFile
+    RemoteFile, Sentry
 } from '@irohalab/mira-shared';
 
 const logger = pino();
@@ -45,6 +44,7 @@ export class DownloadService {
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
                 @inject(TYPES_DM.Downloader) private _downloader: DownloadAdapter,
+                @inject(TYPES.Sentry) private _sentry: Sentry,
                 private _mqService: RabbitMQService) {
     }
 
@@ -116,7 +116,7 @@ export class DownloadService {
                 await mkdir(destDir, {recursive: true});
                 await copyFile(sourcePath, videoFileDestPath);
             } catch (ex) {
-                capture(ex);
+                this._sentry.capture(ex);
                 logger.warn(ex);
             }
             return videoFileDestPath;

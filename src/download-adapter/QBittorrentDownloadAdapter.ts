@@ -17,26 +17,24 @@
 import { DownloadAdapter } from './DownloadAdapter';
 import { inject, injectable } from 'inversify';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { TYPES_DM } from '../TYPES_DM';
 import { ConfigManager } from '../utils/ConfigManager';
 import axios from 'axios';
 import * as FormData from 'form-data';
-import { join, dirname } from 'path';
+import { join } from 'path';
 import { nanoid } from 'nanoid';
-import { QBittorrentInfo } from '../domain/QBittorrentInfo';    
+import { QBittorrentInfo } from '../domain/QBittorrentInfo';
 import { DatabaseService } from '../service/DatabaseService';
 import { DownloaderType } from '../domain/DownloaderType';
 import { QBittorrentState } from '../domain/QBittorrentState';
 import { DownloadJob } from '../entity/DownloadJob';
 import { JobStatus } from '../domain/JobStatus';
-import Timer = NodeJS.Timer;
 import { TorrentFile } from '../domain/TorrentFile';
 import { TorrentInfo } from '../domain/TorrentInfo';
 import { getTorrentHash } from '../utils/torrent-utils';
 import { promisify } from 'util';
 import pino from 'pino';
-import { capture } from '../utils/sentry';
-import { TYPES } from '@irohalab/mira-shared';
+import { Sentry, TYPES } from '@irohalab/mira-shared';
+import Timer = NodeJS.Timer;
 
 const TMP_ID_SIZE = 8;
 const REFRESH_INFO_INTERVAL = 5000;
@@ -59,7 +57,8 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
     private _retryCount: number = 0;
 
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
-                @inject(TYPES.DatabaseService) private _databaseService: DatabaseService) {
+                @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
+                @inject(TYPES.Sentry) private _sentry: Sentry) {
         this._baseUrl = this._configManager.getQBittorrentConfig().api_url;
     }
 
@@ -128,8 +127,8 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
         try {
             await this._databaseService.getCleanUpTaskRepository().addTempFolderPath(info.save_path);
         } catch (e) {
-            capture(e);
             logger.warn(e);
+            this._sentry.capture(e);
         }
     }
 
@@ -231,7 +230,7 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
             })
             .catch((error) => {
                 if (!this._lastError || (error && error.message !== this._lastError.message)) {
-                    capture(error);
+                    this._sentry.capture(error);
                 }
                 // reschedule checkTorrentStatus() in case there is an error.
                 clearTimeout(this._timerId);
@@ -253,8 +252,8 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
         try {
             await this._databaseService.getJobRepository().save(jobs);
         } catch (ex) {
-            capture(ex);
             logger.error(ex);
+            this._sentry.capture(ex);
         }
     }
 

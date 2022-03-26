@@ -15,14 +15,13 @@
  */
 
 import 'reflect-metadata';
-import { capture, setup as setupSentry } from './utils/sentry';
 import { Container } from 'inversify';
 import { ConfigManager } from './utils/ConfigManager';
 import { TYPES_DM } from './TYPES_DM';
 import { ConfigManagerImpl } from './utils/ConfigManagerImpl';
 import { DatabaseService } from './service/DatabaseService';
 import { DatabaseServiceImpl } from './service/DatabaseServiceImpl';
-import { RabbitMQService, TYPES } from '@irohalab/mira-shared';
+import { RabbitMQService, Sentry, SentryImpl, TYPES } from '@irohalab/mira-shared';
 import { FileManageService } from './service/FileManageService';
 import { DownloadService } from './service/DownloadService';
 import { DownloadManager } from './DownloadManager';
@@ -33,10 +32,16 @@ import { DelugeDownloadAdapter } from './download-adapter/DelugeDownloadAdapter'
 import { hostname } from 'os';
 import pino from 'pino';
 
-setupSentry(`download_manager_${hostname()}`);
+
 const logger = pino();
 
 const container = new Container();
+
+// tslint:disable-next-line
+const { version } = require('../package.json');
+container.bind<Sentry>(TYPES.Sentry).to(SentryImpl).inSingletonScope();
+const sentry = container.get<Sentry>(TYPES.Sentry);
+sentry.setup(`download_manager_${hostname()}`, 'mira-download-manager', version);
 
 container.bind<ConfigManager>(TYPES.ConfigManager).to(ConfigManagerImpl).inSingletonScope();
 const configManager = container.get<ConfigManager>(TYPES.ConfigManager);
@@ -72,8 +77,8 @@ databaseService.start()
         logger.info('download manager start');
         fileManageService.startCleanUp();
     }, (err) => {
-        capture(err);
         logger.error(err);
+        sentry.capture(err);
         process.exit(-1);
     });
 
@@ -86,8 +91,8 @@ function beforeExitHandler() {
         .then(() => {
             process.exit(0);
         }, (error) => {
-            capture(error);
             logger.error(error);
+            sentry.capture(error);
             process.exit(-1);
         });
 }

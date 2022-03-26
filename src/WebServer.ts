@@ -15,7 +15,6 @@
  */
 
 import 'reflect-metadata';
-import { capture, setup as setupSentry } from './utils/sentry';
 import { Container } from 'inversify';
 import { ConfigManager } from './utils/ConfigManager';
 import { TYPES_DM } from './TYPES_DM';
@@ -30,12 +29,18 @@ import { QBittorrentDownloadAdapter } from './download-adapter/QBittorrentDownlo
 import { DownloaderType } from './domain/DownloaderType';
 import pino from 'pino';
 import { hostname } from 'os';
-import { CORE_TASK_EXCHANGE, RabbitMQService, TYPES } from '@irohalab/mira-shared';
+import { CORE_TASK_EXCHANGE, RabbitMQService, Sentry, SentryImpl, TYPES } from '@irohalab/mira-shared';
 
 const logger = pino();
-setupSentry(`download_manager_api_server_${hostname()}`);
 
 const container = new Container();
+
+// tslint:disable-next-line
+const { version } = require('../package.json');
+container.bind<Sentry>(TYPES.Sentry).to(SentryImpl).inSingletonScope();
+const sentry = container.get<Sentry>(TYPES.Sentry);
+sentry.setup(`download_manager_api_server_${hostname()}`, 'mira-download-manager', version);
+
 container.bind<ConfigManager>(TYPES.ConfigManager).to(ConfigManagerImpl).inSingletonScope();
 container.bind<DatabaseService>(TYPES.DatabaseService).to(DatabaseServiceImpl).inSingletonScope();
 container.bind<RabbitMQService>(RabbitMQService).toSelf().inSingletonScope();
@@ -71,8 +76,8 @@ databaseService.start()
         webServer = bootstrap(container);
     })
     .catch((error) =>  {
-        capture(error);
         logger.error(error);
+        sentry.capture(error);
     });
 
 function beforeExitHandler() {
@@ -82,8 +87,8 @@ function beforeExitHandler() {
             process.exit(0);
         }, (error) => {
             webServer.close();
-            capture(error);
             logger.error(error);
+            sentry.capture(error);
             process.exit(-1);
         });
 }
