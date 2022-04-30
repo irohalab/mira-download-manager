@@ -24,20 +24,8 @@ import * as os from 'os';
 import { ConfigManager } from './ConfigManager';
 import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import { MikroORMOptions } from '@mikro-orm/core/utils/Configuration';
-import { MiraNamingStrategy } from '@irohalab/mira-shared';
-import { AbstractNamingStrategy, EntityCaseNamingStrategy } from '@mikro-orm/core';
+import { MiraNamingStrategy, ORMConfig } from '@irohalab/mira-shared';
 import { NamingStrategy } from '@mikro-orm/core/naming-strategy';
-
-type OrmConfig = {
-    type: string;
-    host: string;
-    port: number;
-    user: string;
-    password: string;
-    dbName: string;
-    entities: string[];
-    entitiesTs: string[];
-};
 
 type AppConfig = {
     amqp: {
@@ -70,7 +58,7 @@ const PROJECT_ROOT_PATTERN = /\${project_root}/;
 
 @injectable()
 export class ConfigManagerImpl implements ConfigManager {
-    private readonly _ormConfig: OrmConfig;
+    private readonly _ormConfig: ORMConfig;
     private readonly _config: AppConfig;
 
     constructor() {
@@ -102,7 +90,7 @@ export class ConfigManagerImpl implements ConfigManager {
     }
 
     public databaseConfig(): MikroORMOptions<PostgreSqlDriver> {
-        return Object.assign({namingStrategy: MiraNamingStrategy as {new(): NamingStrategy}}, this._ormConfig) as MikroORMOptions<PostgreSqlDriver>;
+        return Object.assign({namingStrategy: MiraNamingStrategy as new() => NamingStrategy}, this._ormConfig) as MikroORMOptions<PostgreSqlDriver>;
     }
 
     public amqpServerUrl(): string {

@@ -34,9 +34,9 @@ const logger = pino();
 
 export function bootstrap(container: Container): Server {
     const expressServer = new InversifyExpressServer(container);
-    const requestContext = container.get<DatabaseService>(TYPES.DatabaseService);
+    const databaseService = container.get<DatabaseService>(TYPES.DatabaseService);
     expressServer.setConfig((theApp) => {
-        theApp.use(requestContext.requestContextMiddleware());
+        theApp.use(databaseService.requestContextMiddleware());
         theApp.use(bodyParser.urlencoded({
             extended: true
         }))
