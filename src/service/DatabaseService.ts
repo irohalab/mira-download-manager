@@ -19,6 +19,6 @@ import { CleanUpTaskRepository } from '../repository/CleanUpTaskRepository';
 import { BaseDatabaseService } from '@irohalab/mira-shared';
 
 export interface DatabaseService extends BaseDatabaseService {
-    getJobRepository(): DownloadJobRepository;
+    getJobRepository(useRequestContext?: boolean): DownloadJobRepository;
     getCleanUpTaskRepository(): CleanUpTaskRepository;
 }

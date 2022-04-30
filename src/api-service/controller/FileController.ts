@@ -103,7 +103,7 @@ export class FileController implements interfaces.Controller {
     public async removeTorrent(@requestParam('downloadTaskId') downloadTaskId: string,
                                @response() res: ExpressResponse): Promise<void> {
         logger.info('remove torrent' + downloadTaskId);
-        const repo = this._database.getJobRepository();
+        const repo = this._database.getJobRepository(true);
         const job = await repo.findOne({downloadTaskMessageId: downloadTaskId});
         if (job) {
             const torrentId = job.torrentId;

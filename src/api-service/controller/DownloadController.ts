@@ -29,14 +29,7 @@ export class DownloadController implements interfaces.Controller {
     @httpGet('/job')
     public async listJobs(@queryParam('status') status: string): Promise<ResponseWrapper<DownloadJob[]>> {
         const jobStatus = status as JobStatus
-        const jobs = await this._database.getJobRepository().find({
-            where: {
-                status: jobStatus
-            },
-            order: {
-                createTime: 'DESC'
-            }
-        });
+        const jobs = await this._database.getJobRepository(true).listJobByStatusWithDescOrder(jobStatus);
         return {
             data: jobs || [],
             status: 0

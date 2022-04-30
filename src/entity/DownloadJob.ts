@@ -14,77 +14,77 @@
  * limitations under the License.
  */
 
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 import { DownloaderType } from '../domain/DownloaderType';
 import { JobStatus } from '../domain/JobStatus';
 import { DownloadTaskMessage } from '../domain/DownloadTaskMessage';
 import { FileMapping } from '../domain/FileMapping';
+import { DateType, Entity, EntityRepositoryType, Enum, JsonType, PrimaryKey, Property } from '@mikro-orm/core';
+import { DownloadJobRepository } from '../repository/DownloadJobRepository';
+import { randomUUID } from 'crypto';
 
-@Entity()
+@Entity({ customRepository: () => DownloadJobRepository })
 export class DownloadJob {
-    @PrimaryGeneratedColumn('uuid')
-    public id: string;
+    @PrimaryKey()
+    public id: string = randomUUID();
 
-    @Column({
+    @Property({
         nullable: true
     })
     public torrentId: string;
 
-    @Column({
-        type: 'enum',
-        enum: DownloaderType,
-        default: DownloaderType.qBittorrent
-    })
-    public downloader: DownloaderType;
+    @Enum()
+    public downloader: DownloaderType = DownloaderType.qBittorrent;
 
-    @Column({
-        type: 'enum',
-        enum: JobStatus,
-        default: JobStatus.Pending
-    })
-    public status: JobStatus
+    @Enum()
+    public status: JobStatus = JobStatus.Pending;
 
-    @Column()
+    @Property()
     public torrentUrl: string;
 
-    @Column()
+    @Property()
     public bangumiId: string;
 
-    @Column()
+    @Property()
     public downloadTaskMessageId: string;
 
-    @Column({
-        type: 'jsonb'
+    @Property({
+        columnType: 'jsonb',
+        type: JsonType
     })
     public downloadTaskMessage: DownloadTaskMessage;
 
-    @Column({
-        type: 'jsonb',
+    @Property({
+        columnType: 'jsonb',
+        type: JsonType,
         nullable: true
     })
     public fileMapping: FileMapping[];
 
-    @Column({
+    @Property({
         nullable: true
     })
     public videoId: string;
 
-    @Column({
-        type: 'float',
+    @Property({
+        columnType: 'float',
         default: 0
     })
     public progress: number;
 
-    @Column({
-        type: 'timestamp',
+    @Property({
+        columnType: 'timestamp',
+        type: DateType,
         nullable: true
     })
     public createTime: Date;
 
     // there may be delay between job endTime and the torrent endTime
-    @Column({
-        type: 'timestamp',
+    @Property({
+        columnType: 'timestamp',
+        type: DateType,
         nullable: true
     })
     public endTime: Date;
+
+    [EntityRepositoryType]?: DownloadJobRepository;
 }

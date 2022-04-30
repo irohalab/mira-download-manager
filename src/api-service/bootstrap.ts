@@ -27,14 +27,16 @@ import './controller/RpcController';
 import './controller/DownloadController';
 import pino from 'pino';
 import { TYPES } from '@irohalab/mira-shared';
+import { DatabaseService } from '../service/DatabaseService';
 
 const DEBUG = process.env.DEBUG === 'true';
 const logger = pino();
 
 export function bootstrap(container: Container): Server {
     const expressServer = new InversifyExpressServer(container);
-
+    const requestContext = container.get<DatabaseService>(TYPES.DatabaseService);
     expressServer.setConfig((theApp) => {
+        theApp.use(requestContext.requestContextMiddleware());
         theApp.use(bodyParser.urlencoded({
             extended: true
         }))

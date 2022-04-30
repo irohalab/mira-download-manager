@@ -95,7 +95,7 @@ export class FileManageService {
 
     private async doCleanUp(): Promise<void> {
         const taskRepo = this._databaseService.getCleanUpTaskRepository();
-        const tasks = await taskRepo.find();
+        const tasks = await taskRepo.findAll();
         if (tasks && tasks.length > 0) {
             for (let task of tasks) {
                 try {

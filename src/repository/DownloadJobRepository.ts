@@ -14,22 +14,28 @@
  * limitations under the License.
  */
 
-import { EntityRepository, Repository } from 'typeorm';
 import { DownloadJob } from '../entity/DownloadJob';
 import { DownloaderType } from '../domain/DownloaderType';
 import { JobStatus } from '../domain/JobStatus';
+import { BaseEntityRepository } from '@irohalab/mira-shared/repository/BaseEntityRepository';
 
-@EntityRepository(DownloadJob)
-export class DownloadJobRepository extends Repository<DownloadJob> {
+export class DownloadJobRepository extends BaseEntityRepository<DownloadJob> {
     public async listUnsettledJobs(downloaderType: DownloaderType): Promise<DownloadJob[]> {
-        return await this.createQueryBuilder('download_job')
-            .where('download_job.downloader = :downloader', {downloader: downloaderType})
-            .andWhere('download_job.status = :pending_status OR download_job.status = :downloading_status OR' +
-                ' download_job.status = :paused_status',
+        return await this.find({
+            $and: [
+                {downloader: downloaderType},
                 {
-                    pending_status: JobStatus.Pending,
-                    downloading_status: JobStatus.Downloading,
-                    paused_status: JobStatus.Paused})
-            .getMany();
+                    $or: [
+                        {status: JobStatus.Pending},
+                        {status: JobStatus.Downloading},
+                        {status: JobStatus.Paused}
+                    ]
+                }
+            ]
+        });
+    }
+
+    public async listJobByStatusWithDescOrder(status: JobStatus): Promise<DownloadJob[]> {
+        return await this.find({status}, {orderBy: {createTime: 'DESC'}});
     }
 }

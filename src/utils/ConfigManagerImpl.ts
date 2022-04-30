@@ -15,28 +15,28 @@
  */
 
 import { load as loadYaml } from 'js-yaml';
-import { join, resolve } from 'path';
+import { resolve } from 'path';
 import { readFileSync } from 'fs';
 import { injectable } from 'inversify';
 import { QBittorrentConfig } from '../domain/QBittorrentConfig';
-import { ConnectionOptions } from 'typeorm';
 import { Options } from 'amqplib';
 import * as os from 'os';
 import { ConfigManager } from './ConfigManager';
+import { PostgreSqlDriver } from '@mikro-orm/postgresql';
+import { MikroORMOptions } from '@mikro-orm/core/utils/Configuration';
+import { MiraNamingStrategy } from '@irohalab/mira-shared';
+import { AbstractNamingStrategy, EntityCaseNamingStrategy } from '@mikro-orm/core';
+import { NamingStrategy } from '@mikro-orm/core/naming-strategy';
 
 type OrmConfig = {
     type: string;
     host: string;
     port: number;
-    username: string;
+    user: string;
     password: string;
-    database: string;
-    synchronize: boolean;
-    logging: boolean;
+    dbName: string;
     entities: string[];
-    migrations: string[];
-    subscribers: string[];
-    cli: { [key: string]: string };
+    entitiesTs: string[];
 };
 
 type AppConfig = {
@@ -101,8 +101,8 @@ export class ConfigManagerImpl implements ConfigManager {
         return this._config.qBittorrent;
     }
 
-    public databaseConnectionConfig(): ConnectionOptions {
-        return Object.assign({}, this._ormConfig) as ConnectionOptions;
+    public databaseConfig(): MikroORMOptions<PostgreSqlDriver> {
+        return Object.assign({namingStrategy: MiraNamingStrategy as {new(): NamingStrategy}}, this._ormConfig) as MikroORMOptions<PostgreSqlDriver>;
     }
 
     public amqpServerUrl(): string {

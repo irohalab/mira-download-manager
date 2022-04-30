@@ -18,10 +18,11 @@ import { inject, injectable } from 'inversify';
 import { TYPES_DM } from '../TYPES_DM';
 import { ConfigManager } from '../utils/ConfigManager';
 import { DownloadJobRepository } from '../repository/DownloadJobRepository';
-import { getCustomRepository } from 'typeorm';
 import { CleanUpTaskRepository } from '../repository/CleanUpTaskRepository';
 import { DatabaseService } from './DatabaseService';
 import { BasicDatabaseServiceImpl, TYPES } from '@irohalab/mira-shared';
+import { DownloadJob } from '../entity/DownloadJob';
+import { CleanUpTask } from '../entity/CleanUpTask';
 
 @injectable()
 export class DatabaseServiceImpl extends BasicDatabaseServiceImpl implements DatabaseService {
@@ -30,11 +31,11 @@ export class DatabaseServiceImpl extends BasicDatabaseServiceImpl implements Dat
         super(configManager);
     }
 
-    public getJobRepository(): DownloadJobRepository {
-        return getCustomRepository<DownloadJobRepository>(DownloadJobRepository);
+    public getJobRepository(useRequestContext: boolean = false): DownloadJobRepository {
+        return this._em.fork({useContext: useRequestContext}).getRepository(DownloadJob) as DownloadJobRepository;
     }
 
     public getCleanUpTaskRepository(): CleanUpTaskRepository {
-        return getCustomRepository<CleanUpTaskRepository>(CleanUpTaskRepository);
+        return this._em.fork().getRepository(CleanUpTask) as CleanUpTaskRepository;
     }
 }

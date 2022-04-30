@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-import { EntityRepository, Repository } from 'typeorm';
 import { CleanUpTask } from '../entity/CleanUpTask';
+import { BaseEntityRepository } from '@irohalab/mira-shared/repository/BaseEntityRepository';
 
-@EntityRepository(CleanUpTask)
-export class CleanUpTaskRepository extends Repository<CleanUpTask> {
+export class CleanUpTaskRepository extends BaseEntityRepository<CleanUpTask> {
     public async addTempFolderPath(tempFolderPath: string): Promise<void> {
         const task = new CleanUpTask();
         task.directoryPath = tempFolderPath;
-        await this.save(task);
+        await this.persist(task);
     }
 }
