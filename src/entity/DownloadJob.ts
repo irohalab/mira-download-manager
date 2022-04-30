@@ -18,7 +18,15 @@ import { DownloaderType } from '../domain/DownloaderType';
 import { JobStatus } from '../domain/JobStatus';
 import { DownloadTaskMessage } from '../domain/DownloadTaskMessage';
 import { FileMapping } from '../domain/FileMapping';
-import { DateType, Entity, EntityRepositoryType, Enum, JsonType, PrimaryKey, Property } from '@mikro-orm/core';
+import {
+    DateTimeType,
+    Entity,
+    EntityRepositoryType,
+    Enum,
+    JsonType,
+    PrimaryKey,
+    Property
+} from '@mikro-orm/core';
 import { DownloadJobRepository } from '../repository/DownloadJobRepository';
 import { randomUUID } from 'crypto';
 
@@ -73,7 +81,7 @@ export class DownloadJob {
 
     @Property({
         columnType: 'timestamp',
-        type: DateType,
+        type: DateTimeType,
         nullable: true
     })
     public createTime: Date;
@@ -81,7 +89,7 @@ export class DownloadJob {
     // there may be delay between job endTime and the torrent endTime
     @Property({
         columnType: 'timestamp',
-        type: DateType,
+        type: DateTimeType,
         nullable: true
     })
     public endTime: Date;
