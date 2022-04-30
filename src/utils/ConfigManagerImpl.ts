@@ -14,30 +14,18 @@
  * limitations under the License.
  */
 
-import { ConfigManager } from './ConfigManager';
 import { load as loadYaml } from 'js-yaml';
-import { join, resolve } from 'path';
+import { resolve } from 'path';
 import { readFileSync } from 'fs';
 import { injectable } from 'inversify';
 import { QBittorrentConfig } from '../domain/QBittorrentConfig';
-import { ConnectionOptions } from 'typeorm';
 import { Options } from 'amqplib';
 import * as os from 'os';
-
-type OrmConfig = {
-    type: string;
-    host: string;
-    port: number;
-    username: string;
-    password: string;
-    database: string;
-    synchronize: boolean;
-    logging: boolean;
-    entities: string[];
-    migrations: string[];
-    subscribers: string[];
-    cli: { [key: string]: string };
-};
+import { ConfigManager } from './ConfigManager';
+import { PostgreSqlDriver } from '@mikro-orm/postgresql';
+import { MikroORMOptions } from '@mikro-orm/core/utils/Configuration';
+import { MiraNamingStrategy, ORMConfig } from '@irohalab/mira-shared';
+import { NamingStrategy } from '@mikro-orm/core/naming-strategy';
 
 type AppConfig = {
     amqp: {
@@ -70,7 +58,7 @@ const PROJECT_ROOT_PATTERN = /\${project_root}/;
 
 @injectable()
 export class ConfigManagerImpl implements ConfigManager {
-    private readonly _ormConfig: OrmConfig;
+    private readonly _ormConfig: ORMConfig;
     private readonly _config: AppConfig;
 
     constructor() {
@@ -101,8 +89,8 @@ export class ConfigManagerImpl implements ConfigManager {
         return this._config.qBittorrent;
     }
 
-    public databaseConnectionConfig(): ConnectionOptions {
-        return Object.assign({}, this._ormConfig) as ConnectionOptions;
+    public databaseConfig(): MikroORMOptions<PostgreSqlDriver> {
+        return Object.assign({namingStrategy: MiraNamingStrategy as new() => NamingStrategy}, this._ormConfig) as MikroORMOptions<PostgreSqlDriver>;
     }
 
     public amqpServerUrl(): string {

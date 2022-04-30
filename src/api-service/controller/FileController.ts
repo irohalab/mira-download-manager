@@ -22,10 +22,10 @@ import {
     interfaces,
     queryParam,
     requestParam,
-    response
+    response, TYPE
 } from 'inversify-express-utils';
 import { inject } from 'inversify';
-import { TYPES } from '../../TYPES';
+import { TYPES_DM } from '../../TYPES_DM';
 import { ConfigManager } from '../../utils/ConfigManager';
 import { join, basename } from 'path';
 import { stat } from 'fs/promises';
@@ -33,7 +33,7 @@ import { DatabaseService } from '../../service/DatabaseService';
 import { DownloadAdapter } from '../../download-adapter/DownloadAdapter';
 import { QBittorrentDownloadAdapter } from '../../download-adapter/QBittorrentDownloadAdapter';
 import pino from 'pino';
-import { capture } from '../../utils/sentry';
+import { Sentry, TYPES } from '@irohalab/mira-shared';
 
 const logger = pino();
 
@@ -43,7 +43,8 @@ export class FileController implements interfaces.Controller {
     private readonly _message404 = 'file not found';
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 @inject(TYPES.DatabaseService) private _database: DatabaseService,
-                @inject(TYPES.Downloader) private _downloader: DownloadAdapter) {
+                @inject(TYPES_DM.Downloader) private _downloader: DownloadAdapter,
+                @inject(TYPES.Sentry) private _sentry: Sentry) {
         // this._videoTempPath = this._configManager.videoFileTempDir();
     }
 
@@ -64,7 +65,7 @@ export class FileController implements interfaces.Controller {
                 const fsStatObj = await stat(fileLocalPath);
                 if (!fsStatObj.isFile()) {
                     // try to address issue
-                    capture({ fileLocalPath, fsStatObj, message: 'path is not a file' });
+                    this._sentry.capture({ fileLocalPath, fsStatObj, message: 'path is not a file' });
                     res.status(404).json({'message': this._message404});
                     return;
                 }
@@ -72,8 +73,8 @@ export class FileController implements interfaces.Controller {
                 await new Promise<void>((resolve, reject) => {
                     res.download(fileLocalPath, filename, (err) => {
                         if (err) {
-                            capture(err);
                             logger.error('error when sending downloaded file' + err);
+                            this._sentry.capture(err);
                             reject(err);
                         } else {
                             logger.info('Sent:', filename);
@@ -83,17 +84,17 @@ export class FileController implements interfaces.Controller {
                 });
             } catch (e) {
                 if (e.code === 'ENOENT') {
-                    capture(e);
+                    this._sentry.capture(e);
                     res.status(404).json({'message': this._message404});
                 } else {
-                    capture(e);
+                    this._sentry.capture(e);
                     logger.error(e);
                     res.status(500).json({'message': 'internal server error'});
                 }
             }
         } else {
             // try to address issue
-            capture({ downloadJobId, message: 'job not found' });
+            this._sentry.capture({ downloadJobId, message: 'job not found' });
             res.status(404).json({'message': this._message404});
         }
     }
@@ -102,15 +103,15 @@ export class FileController implements interfaces.Controller {
     public async removeTorrent(@requestParam('downloadTaskId') downloadTaskId: string,
                                @response() res: ExpressResponse): Promise<void> {
         logger.info('remove torrent' + downloadTaskId);
-        const repo = this._database.getJobRepository();
+        const repo = this._database.getJobRepository(true);
         const job = await repo.findOne({downloadTaskMessageId: downloadTaskId});
         if (job) {
             const torrentId = job.torrentId;
             await this._downloader.remove(torrentId, true);
-            capture({message: 'remove torrent', downloadTaskId: downloadTaskId, torrentId: torrentId, job: job});
+            this._sentry.capture({message: 'remove torrent', downloadTaskId: downloadTaskId, torrentId: torrentId, job: job});
             res.status(200).json({'message': 'ok'});
         } else {
-            capture({ downloadTaskId, message: 'unable to remove torrent, job not found'});
+            this._sentry.capture({ downloadTaskId, message: 'unable to remove torrent, job not found'});
             res.status(404).json({'message': this._message404});
         }
     }

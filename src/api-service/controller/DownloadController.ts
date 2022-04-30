@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-import { controller, httpGet, interfaces, queryParam, response } from 'inversify-express-utils';
+import { controller, httpGet, interfaces, queryParam } from 'inversify-express-utils';
 import { DatabaseService } from '../../service/DatabaseService';
 import { JobStatus } from '../../domain/JobStatus';
-import { ResponseWrapper } from '../ResponseWrapper';
 import { DownloadJob } from '../../entity/DownloadJob';
 import { inject } from 'inversify';
-import { TYPES } from '../../TYPES';
+import { ResponseWrapper, TYPES } from '@irohalab/mira-shared';
 
 @controller('/download')
 export class DownloadController implements interfaces.Controller {
@@ -30,14 +29,7 @@ export class DownloadController implements interfaces.Controller {
     @httpGet('/job')
     public async listJobs(@queryParam('status') status: string): Promise<ResponseWrapper<DownloadJob[]>> {
         const jobStatus = status as JobStatus
-        const jobs = await this._database.getJobRepository().find({
-            where: {
-                status: jobStatus
-            },
-            order: {
-                createTime: 'DESC'
-            }
-        });
+        const jobs = await this._database.getJobRepository(true).listJobByStatusWithDescOrder(jobStatus);
         return {
             data: jobs || [],
             status: 0

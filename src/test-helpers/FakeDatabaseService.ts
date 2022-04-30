@@ -17,7 +17,7 @@
 import { DatabaseService } from '../service/DatabaseService';
 import { injectable } from 'inversify';
 import { DownloadJobRepository } from '../repository/DownloadJobRepository';
-import { MessageRepository } from '../repository/MessageRepository';
+import { MessageRepository } from '@irohalab/mira-shared';
 import { CleanUpTaskRepository } from '../repository/CleanUpTaskRepository';
 
 @injectable()

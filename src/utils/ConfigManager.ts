@@ -15,18 +15,14 @@
  */
 
 import { QBittorrentConfig } from '../domain/QBittorrentConfig';
-import { ConnectionOptions } from 'typeorm';
-import { Options } from 'amqplib';
+import { BaseConfigManager } from '@irohalab/mira-shared';
 
-export interface ConfigManager {
+export interface ConfigManager extends BaseConfigManager {
     downloader(): string;
     delugeRPCUrl(): string;
     delugePass(): string;
     defaultDownloadLocation(): string;
-    amqpConfig(): Options.Connect;
-    amqpServerUrl(): string;
     getQBittorrentConfig(): QBittorrentConfig;
-    databaseConnectionConfig(): ConnectionOptions;
 
     enabledHttps(): boolean;
     serverHost(): string;

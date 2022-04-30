@@ -15,9 +15,7 @@
  */
 
 import { inject, injectable } from 'inversify';
-import { TYPES } from '../TYPES';
 import { ConfigManager } from '../utils/ConfigManager';
-import { RemoteFile } from '../domain/RemoteFile';
 import { URL } from 'url';
 import { copyFile, mkdir, rmdir } from 'fs/promises';
 import { createWriteStream } from 'fs';
@@ -27,7 +25,7 @@ import { basename, dirname, extname } from 'path';
 import { nanoid } from 'nanoid';
 import { DatabaseService } from './DatabaseService';
 import pino from 'pino';
-import { capture } from '../utils/sentry';
+import { RemoteFile, Sentry, TYPES } from '@irohalab/mira-shared';
 
 const CLEAN_UP_INTERVAL = 5 * 60000;
 const logger = pino();
@@ -37,7 +35,8 @@ export class FileManageService {
     private _cleanUpTaskTimerId: NodeJS.Timeout;
 
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
-                @inject(TYPES.DatabaseService) private _databaseService: DatabaseService) {
+                @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
+                @inject(TYPES.Sentry) private _sentry: Sentry) {
     }
 
     public async download(remoteFile: RemoteFile, destPath: string, appId: string): Promise<void> {
@@ -51,8 +50,8 @@ export class FileManageService {
                 try {
                     await copyFile(remoteFile.fileLocalPath, destPath);
                 } catch (err) {
-                    capture(err);
                     logger.warn(err);
+                    this._sentry.capture(err);
                 }
                 return;
             } else {
@@ -96,7 +95,7 @@ export class FileManageService {
 
     private async doCleanUp(): Promise<void> {
         const taskRepo = this._databaseService.getCleanUpTaskRepository();
-        const tasks = await taskRepo.find();
+        const tasks = await taskRepo.findAll();
         if (tasks && tasks.length > 0) {
             for (let task of tasks) {
                 try {
@@ -107,7 +106,11 @@ export class FileManageService {
                     });
                     await taskRepo.remove(task);
                 } catch (e) {
-                    logger.warn(e);
+                    if (e.code !== 'ENOENT') {
+                        logger.warn(e);
+                    } else {
+                        await taskRepo.remove(task);
+                    }
                 }
             }
         }

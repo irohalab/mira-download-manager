@@ -16,15 +16,12 @@
 
 import { inject, injectable } from 'inversify';
 import { DatabaseService } from './DatabaseService';
-import { DOWNLOAD_MESSAGE_EXCHANGE, TYPES } from '../TYPES';
+import { TYPES_DM } from '../TYPES_DM';
 import { DownloadAdapter } from '../download-adapter/DownloadAdapter';
 import { filter, mergeMap } from 'rxjs/operators';
 import { JobStatus } from '../domain/JobStatus';
-import { RabbitMQService } from './RabbitMQService';
 import { DownloadJob } from '../entity/DownloadJob';
-import { DownloadMQMessage } from '../domain/DownloadMQMessage';
 import { v4 as uuid4 } from 'uuid';
-import { RemoteFile } from '../domain/RemoteFile';
 import { basename, join, dirname } from 'path';
 import { TorrentFile } from '../domain/TorrentFile';
 import { ConfigManager } from '../utils/ConfigManager';
@@ -32,7 +29,13 @@ import { DownloaderType } from '../domain/DownloaderType';
 import { copyFile, mkdir } from 'fs/promises';
 import { FileManageService } from './FileManageService';
 import pino from 'pino';
-import { capture } from '../utils/sentry';
+import {
+    DownloadMQMessage,
+    RabbitMQService,
+    TYPES,
+    DOWNLOAD_MESSAGE_EXCHANGE,
+    RemoteFile, Sentry
+} from '@irohalab/mira-shared';
 
 const logger = pino();
 
@@ -40,7 +43,8 @@ const logger = pino();
 export class DownloadService {
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
-                @inject(TYPES.Downloader) private _downloader: DownloadAdapter,
+                @inject(TYPES_DM.Downloader) private _downloader: DownloadAdapter,
+                @inject(TYPES.Sentry) private _sentry: Sentry,
                 private _mqService: RabbitMQService) {
     }
 
@@ -112,7 +116,7 @@ export class DownloadService {
                 await mkdir(destDir, {recursive: true});
                 await copyFile(sourcePath, videoFileDestPath);
             } catch (ex) {
-                capture(ex);
+                this._sentry.capture(ex);
                 logger.warn(ex);
             }
             return videoFileDestPath;

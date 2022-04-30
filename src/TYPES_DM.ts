@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2020 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,6 @@
  * limitations under the License.
  */
 
-export interface MQMessage {
-    id: string;
-    /**
-     * Distinguish message version.
-     */
-    version: string;
-}
+export const TYPES_DM = {
+    Downloader: Symbol.for('Downloader')
+};

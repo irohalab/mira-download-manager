@@ -16,9 +16,10 @@
 
 import { ConfigManager } from '../utils/ConfigManager';
 import { injectable } from 'inversify';
-import { ConnectionOptions } from 'typeorm';
 import { QBittorrentConfig } from '../domain/QBittorrentConfig';
 import { Options } from 'amqplib';
+import { MikroORMOptions } from '@mikro-orm/core/utils/Configuration';
+import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 
 @injectable()
 export class FakeConfigManager implements ConfigManager {
@@ -40,10 +41,6 @@ export class FakeConfigManager implements ConfigManager {
 
     public applicationId(): string {
         return '';
-    }
-
-    public databaseConnectionConfig(): ConnectionOptions {
-        return undefined;
     }
 
     public defaultDownloadLocation(): string {
@@ -80,6 +77,10 @@ export class FakeConfigManager implements ConfigManager {
 
     public serverPort(): number {
         return 0;
+    }
+
+    public databaseConfig(): MikroORMOptions<PostgreSqlDriver> {
+        return undefined;
     }
 
 }

@@ -14,13 +14,18 @@
  * limitations under the License.
  */
 
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity()
+import { Entity, EntityRepositoryType, PrimaryKey, Property } from '@mikro-orm/core';
+import { CleanUpTaskRepository } from '../repository/CleanUpTaskRepository';
+import { randomUUID } from 'crypto';
+
+@Entity({ customRepository: () => CleanUpTaskRepository })
 export class CleanUpTask {
-    @PrimaryGeneratedColumn('uuid')
-    public id: string;
+    @PrimaryKey()
+    public id: string = randomUUID();
 
-    @Column()
+    @Property()
     public directoryPath: string;
+
+    [EntityRepositoryType]?: CleanUpTaskRepository;
 }
