@@ -22,7 +22,7 @@ import { filter, mergeMap } from 'rxjs/operators';
 import { JobStatus } from '../domain/JobStatus';
 import { DownloadJob } from '../entity/DownloadJob';
 import { v4 as uuid4 } from 'uuid';
-import { basename, join, dirname } from 'path';
+import { basename, dirname, join } from 'path';
 import { TorrentFile } from '../domain/TorrentFile';
 import { ConfigManager } from '../utils/ConfigManager';
 import { DownloaderType } from '../domain/DownloaderType';
@@ -30,11 +30,12 @@ import { copyFile, mkdir } from 'fs/promises';
 import { FileManageService } from './FileManageService';
 import pino from 'pino';
 import {
+    DOWNLOAD_MESSAGE_EXCHANGE,
     DownloadMQMessage,
     RabbitMQService,
-    TYPES,
-    DOWNLOAD_MESSAGE_EXCHANGE,
-    RemoteFile, Sentry
+    RemoteFile,
+    Sentry,
+    TYPES
 } from '@irohalab/mira-shared';
 
 const logger = pino();
@@ -91,7 +92,11 @@ export class DownloadService {
                 break;
         }
         const downloadLocation = join(this._configManager.defaultDownloadLocation(), job.bangumiId);
-        job.torrentId = await this._downloader.download(job.torrentUrl, downloadLocation);
+        try {
+            job.torrentId = await this._downloader.download(job.torrentUrl, downloadLocation);
+        } catch (e) {
+            job.status = JobStatus.Error;
+        }
         logger.debug('download hash: ' + job.torrentId);
         await this._databaseService.getJobRepository().save(job);
         logger.debug('downloadJob id: ' + job.id);

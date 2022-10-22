@@ -1,6 +1,6 @@
 {
    "name": "mira-download-manager",
-   "version": "0.3.0",
+   "version": "0.3.1",
    "description": "manage download of video files",
    "devDependencies": {
       "@types/amqplib": "^0.8.2",
@@ -39,7 +39,7 @@
       "start": "cross-env DEBUG=true ts-node src/main.ts",
       "start:server": "cross-env DEBUG=true ts-node src/WebServer.ts",
       "clean:dist": "rimraf dist/*",
-      "build": "npm run clean:dist && tsc && cp package.json dist",
+      "build": "npm run clean:dist && tsc -p tsconfig.prod.json && cp package.json dist",
       "prod:main": "node dist/main.js",
       "prod:server": "node dist/WebServer.js"
    }
