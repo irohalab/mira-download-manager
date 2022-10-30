@@ -93,6 +93,7 @@ export class DownloadManager {
         let videoFileDestPath: string;
         if (msg.isProcessed) {
             logger.info({message: 'video processed', video_id: msg.videoId, filename: msg.processedFile});
+            // TODO: change processedFile to processedFiles
             // download from video manager
             const filename = FileManageService.processFilename(basename(msg.processedFile.filename));
             videoFileDestPath = join(savePath, filename);
