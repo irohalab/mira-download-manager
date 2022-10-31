@@ -14,16 +14,18 @@
  * limitations under the License.
  */
 
-import { controller, httpGet, interfaces, queryParam } from 'inversify-express-utils';
+import { controller, httpGet, httpPut, interfaces, queryParam, requestParam } from 'inversify-express-utils';
 import { DatabaseService } from '../../service/DatabaseService';
 import { JobStatus } from '../../domain/JobStatus';
 import { DownloadJob } from '../../entity/DownloadJob';
 import { inject } from 'inversify';
 import { ResponseWrapper, TYPES } from '@irohalab/mira-shared';
+import { DownloadService } from '../../service/DownloadService';
 
 @controller('/download')
 export class DownloadController implements interfaces.Controller {
-    constructor(@inject(TYPES.DatabaseService) private _database: DatabaseService) {
+    constructor(@inject(TYPES.DatabaseService) private _database: DatabaseService,
+                private _downloadService: DownloadService) {
     }
 
     @httpGet('/job')
@@ -34,5 +36,25 @@ export class DownloadController implements interfaces.Controller {
             data: jobs || [],
             status: 0
         };
+    }
+
+    @httpPut('/job/:id/resend-finish-message')
+    public async resendFinishMessage(@requestParam('id') jobId: string): Promise<ResponseWrapper<any>> {
+        const job = await this._database.getJobRepository(true).findOne({ id: jobId});
+        if (job) {
+            console.log(job);
+            await this._downloadService.downloadComplete(job);
+            return {
+                data: null,
+                message: 'message resent!',
+                status: 0
+            }
+        } else {
+            return {
+                data: null,
+                message: 'Job not found',
+                status: 1
+            }
+        }
     }
 }

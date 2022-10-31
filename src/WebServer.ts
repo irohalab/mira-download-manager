@@ -29,7 +29,15 @@ import { QBittorrentDownloadAdapter } from './download-adapter/QBittorrentDownlo
 import { DownloaderType } from './domain/DownloaderType';
 import pino from 'pino';
 import { hostname } from 'os';
-import { CORE_TASK_EXCHANGE, RabbitMQService, Sentry, SentryImpl, TYPES } from '@irohalab/mira-shared';
+import {
+    CORE_TASK_EXCHANGE,
+    DOWNLOAD_MESSAGE_EXCHANGE,
+    RabbitMQService,
+    Sentry,
+    SentryImpl,
+    TYPES
+} from '@irohalab/mira-shared';
+import { DownloadService } from './service/DownloadService';
 
 const logger = pino();
 
@@ -58,6 +66,7 @@ switch (downloader) {
         throw new Error(`no downloader with name: ${downloader} is found`);
 }
 
+container.bind<DownloadService>(DownloadService).toSelf().inSingletonScope();
 const databaseService = container.get<DatabaseService>(TYPES.DatabaseService);
 const downloadAdapter = container.get<DownloadAdapter>(TYPES_DM.Downloader);
 const rabbitMQService = container.get<RabbitMQService>(RabbitMQService);
@@ -67,6 +76,9 @@ let webServer: Server;
 databaseService.start()
     .then(() => {
         return rabbitMQService.initPublisher(CORE_TASK_EXCHANGE, 'direct');
+    })
+    .then(() => {
+        return rabbitMQService.initPublisher(DOWNLOAD_MESSAGE_EXCHANGE, 'direct');
     })
     .then(() => {
         return downloadAdapter.connect(false);

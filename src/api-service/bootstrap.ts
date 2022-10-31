@@ -28,6 +28,7 @@ import './controller/DownloadController';
 import pino from 'pino';
 import { TYPES } from '@irohalab/mira-shared';
 import { DatabaseService } from '../service/DatabaseService';
+import { DownloadService } from '../service/DownloadService';
 
 const DEBUG = process.env.DEBUG === 'true';
 const logger = pino();
@@ -35,12 +36,16 @@ const logger = pino();
 export function bootstrap(container: Container): Server {
     const expressServer = new InversifyExpressServer(container);
     const databaseService = container.get<DatabaseService>(TYPES.DatabaseService);
+    const downloadService= container.get<DownloadService>(DownloadService);
+    downloadService.start(false).then(() => {
+        logger.info('connected to downloader');
+    });
     expressServer.setConfig((theApp) => {
-        theApp.use(databaseService.requestContextMiddleware());
         theApp.use(bodyParser.urlencoded({
             extended: true
         }))
         theApp.use(bodyParser.json())
+        theApp.use(databaseService.requestContextMiddleware());
         if (DEBUG) {
             theApp.use(cors());
         }

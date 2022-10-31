@@ -49,36 +49,38 @@ export class DownloadService {
                 private _mqService: RabbitMQService) {
     }
 
-    public async start(): Promise<void> {
-        await this._downloader.connect(true);
+    public async start(enableEvent: boolean = true): Promise<void> {
+        await this._downloader.connect(enableEvent);
 
-        this._downloader.downloadStatusChanged()
-            .pipe(
-                filter(jobId => !!jobId),
-                mergeMap((jobId: string) => {
-                    return this._databaseService.getJobRepository().findOne({id: jobId});
-                }),
-                filter((job: DownloadJob) => {
-                    return job && job.status === JobStatus.Complete;
-                }),
-                mergeMap((job: DownloadJob) => {
-                    job.endTime = new Date();
-                    return this._databaseService.getJobRepository().save(job);
-                })
-            )
-            .subscribe((job: DownloadJob | undefined) => {
-                this.downloadComplete(job).then(() => {
-                    logger.info('download complete');
+        if (enableEvent) {
+            this._downloader.downloadStatusChanged()
+                .pipe(
+                    filter(jobId => !!jobId),
+                    mergeMap((jobId: string) => {
+                        return this._databaseService.getJobRepository().findOne({id: jobId});
+                    }),
+                    filter((job: DownloadJob) => {
+                        return job && job.status === JobStatus.Complete;
+                    }),
+                    mergeMap((job: DownloadJob) => {
+                        job.endTime = new Date();
+                        return this._databaseService.getJobRepository().save(job);
+                    })
+                )
+                .subscribe((job: DownloadJob | undefined) => {
+                    this.downloadComplete(job).then(() => {
+                        logger.info('download complete');
+                    });
                 });
-            });
 
-        this._downloader.torrentDeleteEvent()
-            .pipe(
-                filter(jobId => !!jobId)
-            )
-            .subscribe((jobId: string) => {
-                logger.info(jobId + ' delete id');
-            });
+            this._downloader.torrentDeleteEvent()
+                .pipe(
+                    filter(jobId => !!jobId)
+                )
+                .subscribe((jobId: string) => {
+                    logger.info(jobId + ' delete id');
+                });
+        }
     }
 
     public async download(job: DownloadJob): Promise<void> {
@@ -128,7 +130,7 @@ export class DownloadService {
         }
     }
 
-    private async downloadComplete(job: DownloadJob): Promise<void> {
+    public async downloadComplete(job: DownloadJob): Promise<void> {
         const files = await this._downloader.getTorrentContent(job.torrentId);
         const info = await this._downloader.getTorrentInfo(job.torrentId);
         const savePath = info.save_path;
@@ -155,6 +157,7 @@ export class DownloadService {
                 promises.push(this._mqService.publish(DOWNLOAD_MESSAGE_EXCHANGE, '', message));
             }
             await Promise.all(promises);
+            console.log('all message sent');
         } else {
             // in case of some legacy feed that doesn't provide torrent content. no fileMapping available.
             // we need to guess the video file.
@@ -167,6 +170,7 @@ export class DownloadService {
             message.videoFile.fileUri = this._configManager.getFileUrl(videoFile.name, job.id);
             message.otherFiles.splice(message.otherFiles.findIndex(f => f.filename === message.videoFile.filename), 1);
             await this._mqService.publish(DOWNLOAD_MESSAGE_EXCHANGE, '', message);
+            console.log('message sent');
         }
     }
 
