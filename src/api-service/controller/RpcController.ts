@@ -20,10 +20,10 @@ import { inject } from 'inversify';
 import { ConfigManager } from '../../utils/ConfigManager';
 import { DatabaseService } from '../../service/DatabaseService';
 import { inspect } from 'util';
-import pino from 'pino';
 import { CORE_TASK_EXCHANGE, DOWNLOAD_TASK, RabbitMQService, TYPES } from '@irohalab/mira-shared';
+import { getStdLogger } from '../../utils/Logger';
 
-const logger = pino();
+const logger = getStdLogger();
 
 /**
  * This will be deprecated once we deprecate Albireo

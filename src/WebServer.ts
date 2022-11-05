@@ -27,7 +27,6 @@ import { DownloadAdapter } from './download-adapter/DownloadAdapter';
 import { DelugeDownloadAdapter } from './download-adapter/DelugeDownloadAdapter';
 import { QBittorrentDownloadAdapter } from './download-adapter/QBittorrentDownloadAdapter';
 import { DownloaderType } from './domain/DownloaderType';
-import pino from 'pino';
 import { hostname } from 'os';
 import {
     CORE_TASK_EXCHANGE,
@@ -38,8 +37,10 @@ import {
     TYPES
 } from '@irohalab/mira-shared';
 import { DownloadService } from './service/DownloadService';
+import { getStdLogger } from './utils/Logger';
+import { RascalImpl } from '@irohalab/mira-shared/services/RascalImpl';
 
-const logger = pino();
+const logger = getStdLogger();
 
 const container = new Container();
 
@@ -51,7 +52,7 @@ sentry.setup(`download_manager_api_server_${hostname()}`, 'mira-download-manager
 
 container.bind<ConfigManager>(TYPES.ConfigManager).to(ConfigManagerImpl).inSingletonScope();
 container.bind<DatabaseService>(TYPES.DatabaseService).to(DatabaseServiceImpl).inSingletonScope();
-container.bind<RabbitMQService>(RabbitMQService).toSelf().inSingletonScope();
+container.bind<RabbitMQService>(TYPES.RabbitMQService).to(RascalImpl).inSingletonScope();
 
 const downloader = container.get<ConfigManager>(TYPES.ConfigManager).downloader() as DownloaderType;
 
@@ -69,7 +70,7 @@ switch (downloader) {
 container.bind<DownloadService>(DownloadService).toSelf().inSingletonScope();
 const databaseService = container.get<DatabaseService>(TYPES.DatabaseService);
 const downloadAdapter = container.get<DownloadAdapter>(TYPES_DM.Downloader);
-const rabbitMQService = container.get<RabbitMQService>(RabbitMQService);
+const rabbitMQService = container.get<RabbitMQService>(TYPES.RabbitMQService);
 
 let webServer: Server;
 

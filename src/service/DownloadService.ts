@@ -28,7 +28,6 @@ import { ConfigManager } from '../utils/ConfigManager';
 import { DownloaderType } from '../domain/DownloaderType';
 import { copyFile, mkdir } from 'fs/promises';
 import { FileManageService } from './FileManageService';
-import pino from 'pino';
 import {
     DOWNLOAD_MESSAGE_EXCHANGE,
     DownloadMQMessage,
@@ -37,8 +36,9 @@ import {
     Sentry,
     TYPES
 } from '@irohalab/mira-shared';
+import { getStdLogger } from '../utils/Logger';
 
-const logger = pino();
+const logger = getStdLogger();
 
 @injectable()
 export class DownloadService {

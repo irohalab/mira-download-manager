@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-import { DownloadJobRepository } from '../repository/DownloadJobRepository';
-import { CleanUpTaskRepository } from '../repository/CleanUpTaskRepository';
-import { BaseDatabaseService } from '@irohalab/mira-shared';
+import pino from 'pino';
 
-export interface DatabaseService extends BaseDatabaseService {
-    getJobRepository(useRequestContext?: boolean): DownloadJobRepository;
-    getCleanUpTaskRepository(): CleanUpTaskRepository;
-    initSchema(): Promise<void>;
+export function getStdLogger(base?:any): pino.Logger {
+    return pino({
+        timestamp: pino.stdTimeFunctions.isoTime,
+        base
+    });
 }

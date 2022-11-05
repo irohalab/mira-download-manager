@@ -32,9 +32,9 @@ import { TorrentFile } from '../domain/TorrentFile';
 import { TorrentInfo } from '../domain/TorrentInfo';
 import { getTorrentHash } from '../utils/torrent-utils';
 import { promisify } from 'util';
-import pino from 'pino';
 import { Sentry, TYPES } from '@irohalab/mira-shared';
 import Timer = NodeJS.Timer;
+import { getStdLogger } from '../utils/Logger';
 
 const TMP_ID_SIZE = 8;
 const REFRESH_INFO_INTERVAL = 5000;
@@ -43,7 +43,7 @@ const RETRY_DELAY = 5000;
 const MAX_RETRY_COUNT = 10;
 
 const sleep = promisify(setTimeout);
-const logger = pino();
+const logger = getStdLogger();
 
 @injectable()
 export class QBittorrentDownloadAdapter implements DownloadAdapter {

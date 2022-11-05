@@ -24,11 +24,11 @@ import { finished } from 'stream/promises';
 import { basename, dirname, extname } from 'path';
 import { nanoid } from 'nanoid';
 import { DatabaseService } from './DatabaseService';
-import pino from 'pino';
 import { RemoteFile, Sentry, TYPES } from '@irohalab/mira-shared';
+import { getStdLogger } from '../utils/Logger';
 
 const CLEAN_UP_INTERVAL = 5 * 60000;
-const logger = pino();
+const logger = getStdLogger();
 
 @injectable()
 export class FileManageService {

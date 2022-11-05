@@ -32,10 +32,10 @@ import { stat } from 'fs/promises';
 import { DatabaseService } from '../../service/DatabaseService';
 import { DownloadAdapter } from '../../download-adapter/DownloadAdapter';
 import { QBittorrentDownloadAdapter } from '../../download-adapter/QBittorrentDownloadAdapter';
-import pino from 'pino';
 import { Sentry, TYPES } from '@irohalab/mira-shared';
+import { getStdLogger } from '../../utils/Logger';
 
-const logger = pino();
+const logger = getStdLogger();
 
 @controller('/file')
 export class FileController implements interfaces.Controller {
