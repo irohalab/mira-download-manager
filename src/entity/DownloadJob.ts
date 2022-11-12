@@ -40,10 +40,10 @@ export class DownloadJob {
     })
     public torrentId: string;
 
-    @Enum()
+    @Enum(() => DownloaderType)
     public downloader: DownloaderType = DownloaderType.qBittorrent;
 
-    @Enum()
+    @Enum(() => JobStatus)
     public status: JobStatus = JobStatus.Pending;
 
     @Property()
@@ -74,10 +74,88 @@ export class DownloadJob {
     public videoId: string;
 
     @Property({
+        nullable: true
+    })
+    public torrentName: string;
+
+    @Property({
         columnType: 'float',
         default: 0
     })
     public progress: number;
+
+    @Property({
+        columnType: 'float',
+        default: 0
+    })
+    public downloadSpeed: number;
+
+    @Property({
+        columnType: 'float',
+        default: 0
+    })
+    public eta: number;
+
+    @Property({
+        columnType: 'float',
+        default: 0,
+        nullable: true
+    })
+    public availability?: number;
+
+    @Property({
+        columnType: 'integer',
+        default: 0
+    })
+    public priority: number;
+
+    @Property({
+        columnType: 'integer',
+        default: 0
+    })
+    public size: number;
+
+    @Property({
+        columnType: 'integer',
+        default: 0
+    })
+    public downloaded: number;
+
+    @Property({
+        columnType: 'integer',
+        default: 0
+    })
+    public amountLeft: number;
+
+    @Property({
+        columnType: 'integer',
+        default: 0
+    })
+    public activeTime: number;
+
+    @Property({
+        columnType: 'integer',
+        default: 0
+    })
+    public seeds: number;
+
+    @Property({
+        columnType: 'integer',
+        default: 0
+    })
+    public leechers: number;
+
+    @Property({
+        columnType: 'integer',
+        default: 0
+    })
+    public connectedSeeds: number;
+
+    @Property({
+        columnType: 'integer',
+        default: 0
+    })
+    public connectedLeechers: number;
 
     @Property({
         columnType: 'timestamp',

@@ -45,6 +45,13 @@ export class DelugeDownloadAdapter implements DownloadAdapter {
         this._delugeRpcUrl = this._configManager.delugeRPCUrl()
     }
 
+    pause(torrentId: string): Promise<void> {
+        throw new Error('Method not implemented.');
+    }
+    resume(torrentId: string): Promise<void> {
+        throw new Error('Method not implemented.');
+    }
+
     public async connect(enableEvent:boolean): Promise<void> {
         if (!await this.auth()) {
             throw new Error('Auth Failed');

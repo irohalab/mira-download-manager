@@ -30,7 +30,7 @@ import { DownloaderType } from './domain/DownloaderType';
 import { hostname } from 'os';
 import {
     CORE_TASK_EXCHANGE,
-    DOWNLOAD_MESSAGE_EXCHANGE,
+    DOWNLOAD_MESSAGE_EXCHANGE, DOWNLOAD_TASK,
     RabbitMQService,
     Sentry,
     SentryImpl,
@@ -69,23 +69,22 @@ switch (downloader) {
 
 container.bind<DownloadService>(DownloadService).toSelf().inSingletonScope();
 const databaseService = container.get<DatabaseService>(TYPES.DatabaseService);
-const downloadAdapter = container.get<DownloadAdapter>(TYPES_DM.Downloader);
+const downloadService = container.get<DownloadService>(DownloadService);
 const rabbitMQService = container.get<RabbitMQService>(TYPES.RabbitMQService);
 
 let webServer: Server;
 
 databaseService.start()
     .then(() => {
-        return rabbitMQService.initPublisher(CORE_TASK_EXCHANGE, 'direct');
+        return rabbitMQService.initPublisher(CORE_TASK_EXCHANGE, 'direct', DOWNLOAD_TASK);
     })
     .then(() => {
-        return rabbitMQService.initPublisher(DOWNLOAD_MESSAGE_EXCHANGE, 'direct');
+        return rabbitMQService.initPublisher(DOWNLOAD_MESSAGE_EXCHANGE, 'direct', '');
     })
     .then(() => {
-        return downloadAdapter.connect(false);
+        return downloadService.start(false);
     })
     .then(() => {
-        logger.debug((downloadAdapter as QBittorrentDownloadAdapter)._cookie);
         webServer = bootstrap(container);
     })
     .catch((error) =>  {

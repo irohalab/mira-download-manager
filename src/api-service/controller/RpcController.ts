@@ -33,7 +33,7 @@ export class RpcController implements interfaces.Controller {
 
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 @inject(TYPES.DatabaseService) private _database: DatabaseService,
-                private _mqService: RabbitMQService) {
+                @inject(TYPES.RabbitMQService) private _mqService: RabbitMQService) {
     }
 
     @httpPost('/download')

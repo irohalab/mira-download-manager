@@ -42,7 +42,7 @@ const logger = getStdLogger();
 
 @injectable()
 export class DownloadManager {
-    constructor(private _mqService: RabbitMQService,
+    constructor(@inject(TYPES.RabbitMQService) private _mqService: RabbitMQService,
                 private _downloadService: DownloadService,
                 private _fileManageService: FileManageService,
                 @inject(TYPES.ConfigManager) private _configManager: ConfigManager,
@@ -133,7 +133,7 @@ export class DownloadManager {
             params: {
                 video_id: msg.videoId,
                 bangumi_id: msg.bangumiId,
-                file_path: encodeURIComponent(normalizedVideoFileDestPath.join(','))
+                file_path_list: encodeURIComponent(normalizedVideoFileDestPath.join(','))
             },
             headers: {
                 "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"

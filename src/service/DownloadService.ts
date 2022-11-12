@@ -46,7 +46,7 @@ export class DownloadService {
                 @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
                 @inject(TYPES_DM.Downloader) private _downloader: DownloadAdapter,
                 @inject(TYPES.Sentry) private _sentry: Sentry,
-                private _mqService: RabbitMQService) {
+                @inject(TYPES.RabbitMQService) private _mqService: RabbitMQService) {
     }
 
     public async start(enableEvent: boolean = true): Promise<void> {
@@ -102,6 +102,30 @@ export class DownloadService {
         logger.debug('download hash: ' + job.torrentId);
         await this._databaseService.getJobRepository().save(job);
         logger.debug('downloadJob id: ' + job.id);
+    }
+
+    public async pause(job: DownloadJob, saveJob = false): Promise<void> {
+        await this._downloader.pause(job.torrentId);
+        job.status = JobStatus.Paused;
+        if (saveJob) {
+            await this._databaseService.getJobRepository().save(job);
+        }
+    }
+
+    public async resume(job: DownloadJob, saveJob = false): Promise<void> {
+        await this._downloader.resume(job.torrentId);
+        job.status = JobStatus.Pending;
+        if (saveJob) {
+            await this._databaseService.getJobRepository().save(job);
+        }
+    }
+
+    public async delete(job: DownloadJob, saveJob = false): Promise<void> {
+        await this._downloader.remove(job.torrentId, true);
+        job.status = JobStatus.Removed;
+        if (saveJob) {
+            await this._databaseService.getJobRepository().save(job);
+        }
     }
 
     /**
