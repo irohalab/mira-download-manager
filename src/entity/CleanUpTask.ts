@@ -24,7 +24,9 @@ export class CleanUpTask {
     @PrimaryKey()
     public id: string = randomUUID();
 
-    @Property()
+    @Property({
+        columnType: 'text'
+    })
     public directoryPath: string;
 
     [EntityRepositoryType]?: CleanUpTaskRepository;

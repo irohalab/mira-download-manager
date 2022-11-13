@@ -46,7 +46,9 @@ export class DownloadJob {
     @Enum(() => JobStatus)
     public status: JobStatus = JobStatus.Pending;
 
-    @Property()
+    @Property({
+        columnType: 'text'
+    })
     public torrentUrl: string;
 
     @Property()
@@ -74,6 +76,7 @@ export class DownloadJob {
     public videoId: string;
 
     @Property({
+        columnType: 'text',
         nullable: true
     })
     public torrentName: string;
