@@ -25,6 +25,15 @@ import { ParsedQs } from 'qs';
 
 @injectable()
 export class FakeDatabaseService implements DatabaseService {
+    initSchema(): Promise<void> {
+        throw new Error('Method not implemented.');
+    }
+    generateSchema(): Promise<string> {
+        throw new Error('Method not implemented.');
+    }
+    syncSchema(): Promise<void> {
+        throw new Error('Method not implemented.');
+    }
     requestContextMiddleware(): (req: Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>, res: Response<any, Record<string, any>>, next: NextFunction) => void {
         throw new Error('Method not implemented.');
     }
