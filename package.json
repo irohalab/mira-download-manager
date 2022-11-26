@@ -1,6 +1,6 @@
 {
    "name": "mira-download-manager",
-   "version": "1.0.0",
+   "version": "1.0.1",
    "description": "manage download of video files",
    "devDependencies": {
       "@types/amqplib": "^0.8.2",
