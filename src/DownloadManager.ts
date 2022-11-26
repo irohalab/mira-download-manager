@@ -35,14 +35,14 @@ import { ConfigManager } from './utils/ConfigManager';
 import { FileManageService } from './service/FileManageService';
 import axios from 'axios';
 import { promisify } from 'util';
-import pino from 'pino';
+import { getStdLogger } from './utils/Logger';
 
 const sleep = promisify(setTimeout);
-const logger = pino();
+const logger = getStdLogger();
 
 @injectable()
 export class DownloadManager {
-    constructor(private _mqService: RabbitMQService,
+    constructor(@inject(TYPES.RabbitMQService) private _mqService: RabbitMQService,
                 private _downloadService: DownloadService,
                 private _fileManageService: FileManageService,
                 @inject(TYPES.ConfigManager) private _configManager: ConfigManager,
@@ -90,21 +90,24 @@ export class DownloadManager {
      */
     private async onVideoManagerMessage(msg: VideoManagerMessage): Promise<void> {
         const savePath = join(this._configManager.defaultDownloadLocation(), msg.bangumiId);
-        let videoFileDestPath: string;
+        let videoFileDestPathList: string[] = [];
         if (msg.isProcessed) {
-            logger.info({message: 'video processed', video_id: msg.videoId, filename: msg.processedFile});
+            logger.info({message: 'video processed', video_id: msg.videoId, filenames: `[${msg.processedFiles.join(', ')}]`});
             // TODO: change processedFile to processedFiles
             // download from video manager
-            const filename = FileManageService.processFilename(basename(msg.processedFile.filename));
-            videoFileDestPath = join(savePath, filename);
-            await this._fileManageService.download(msg.processedFile, videoFileDestPath, msg.jobExecutorId);
+            for(const processedFile of msg.processedFiles) {
+                const filename = FileManageService.processFilename(basename(processedFile.filename));
+                const videoFileDestPath = join(savePath, filename);
+                await this._fileManageService.download(processedFile, videoFileDestPath, msg.jobExecutorId);
+                videoFileDestPathList.push(videoFileDestPath);
+            }
         } else {
             logger.info({message: 'not processed', video_id: msg.videoId});
-            videoFileDestPath = await this._downloadService.copyVideoFile(msg.downloadTaskId, savePath);
+            videoFileDestPathList.push(await this._downloadService.copyVideoFile(msg.downloadTaskId, savePath));
         }
         // all work is done at download manager side.
         // TODO: deprecate this after Albireo is deprecated
-        await this.callAlbireoRpc(msg, videoFileDestPath);
+        await this.callAlbireoRpc(msg, videoFileDestPathList);
     }
 
     private async onDownloadTask(msg: DownloadTaskMessage): Promise<void> {
@@ -119,15 +122,18 @@ export class DownloadManager {
         await this._downloadService.download(job);
     }
 
-    private async callAlbireoRpc(msg: VideoManagerMessage, videoFileDestPath: string): Promise<void> {
+    private async callAlbireoRpc(msg: VideoManagerMessage, videoFileDestPathList: string[]): Promise<void> {
         const rpcUrl = this._configManager.albireoRPCUrl();
         // save relative path, relative to bangumi folder
-        videoFileDestPath = videoFileDestPath.substring(videoFileDestPath.indexOf(msg.bangumiId) + msg.bangumiId.length + 1, videoFileDestPath.length);
+
+        const normalizedVideoFileDestPath = videoFileDestPathList.map((videoFileDestPath) => {
+            return videoFileDestPath.substring(videoFileDestPath.indexOf(msg.bangumiId) + msg.bangumiId.length + 1, videoFileDestPath.length)
+        });
         await axios.get(`${rpcUrl}/download_complete`, {
             params: {
                 video_id: msg.videoId,
                 bangumi_id: msg.bangumiId,
-                file_path: encodeURIComponent(videoFileDestPath)
+                file_path_list: encodeURIComponent(normalizedVideoFileDestPath.join(','))
             },
             headers: {
                 "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"

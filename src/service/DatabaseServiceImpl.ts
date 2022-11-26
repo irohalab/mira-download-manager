@@ -23,6 +23,9 @@ import { DatabaseService } from './DatabaseService';
 import { BasicDatabaseServiceImpl, TYPES } from '@irohalab/mira-shared';
 import { DownloadJob } from '../entity/DownloadJob';
 import { CleanUpTask } from '../entity/CleanUpTask';
+import { getStdLogger } from '../utils/Logger';
+
+const logger = getStdLogger();
 
 @injectable()
 export class DatabaseServiceImpl extends BasicDatabaseServiceImpl implements DatabaseService {
@@ -37,5 +40,13 @@ export class DatabaseServiceImpl extends BasicDatabaseServiceImpl implements Dat
 
     public getCleanUpTaskRepository(): CleanUpTaskRepository {
         return this._em.fork().getRepository(CleanUpTask) as CleanUpTaskRepository;
+    }
+
+    public async initSchema(): Promise<void> {
+        try {
+            await this.syncSchema();
+        } catch (e) {
+            logger.error(e);
+        }
     }
 }

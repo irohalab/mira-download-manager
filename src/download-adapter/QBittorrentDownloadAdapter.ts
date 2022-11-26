@@ -32,9 +32,9 @@ import { TorrentFile } from '../domain/TorrentFile';
 import { TorrentInfo } from '../domain/TorrentInfo';
 import { getTorrentHash } from '../utils/torrent-utils';
 import { promisify } from 'util';
-import pino from 'pino';
 import { Sentry, TYPES } from '@irohalab/mira-shared';
 import Timer = NodeJS.Timer;
+import { getStdLogger } from '../utils/Logger';
 
 const TMP_ID_SIZE = 8;
 const REFRESH_INFO_INTERVAL = 5000;
@@ -43,7 +43,7 @@ const RETRY_DELAY = 5000;
 const MAX_RETRY_COUNT = 10;
 
 const sleep = promisify(setTimeout);
-const logger = pino();
+const logger = getStdLogger();
 
 @injectable()
 export class QBittorrentDownloadAdapter implements DownloadAdapter {
@@ -118,6 +118,18 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
         return hash;
     }
 
+    public async pause(torrentId: string): Promise<void> {
+        await this.sendRequest('/torrents/pause', {
+            hashes: torrentId.toLocaleLowerCase()
+        });
+    }
+
+    public async resume(torrentId: string): Promise<void> {
+        await this.sendRequest('/torrents/resume', {
+            hashes: torrentId.toLocaleLowerCase()
+        })
+    }
+
     public async remove(torrentId: string, deleteFiles: boolean): Promise<void> {
         const info = await this.getTorrentInfo(torrentId);
         await this.sendRequest('/torrents/delete', {
@@ -186,41 +198,31 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
                         for (let i = 0; i < infoList.length; i++) {
                             infoIdMapping[infoList[i].hash] = i;
                         }
-                        let idx, info;
-                        const changedJobs: DownloadJob[] = [];
-                        const progressUpdatedJobs: DownloadJob[] = [];
+                        let info;
+                        const changedJobIds: string[] = [];
                         for (const job of jobs) {
                             if (infoIdMapping.hasOwnProperty(job.torrentId)) {
                                 info = infoList[infoIdMapping[job.torrentId]];
                                 const status = QBittorrentDownloadAdapter.convertStateToJobStatus(info.state);
                                 if (status !== job.status) {
-                                    job.status = status;
-                                    job.progress = info.progress;
-                                    changedJobs.push(job);
-                                } else if (job.progress !== info.progress) {
-                                    job.progress = info.progress;
-                                    progressUpdatedJobs.push(job);
+                                    changedJobIds.push(job.id);
                                 }
+                                this.updateInfo(job, info);
                             } else {
                                 // torrent got deleted
                                 job.status = JobStatus.Removed;
-                                changedJobs.push(job);
                             }
                         }
-                        if (changedJobs.length > 0) {
-                            return this.updateJobs(changedJobs.concat(progressUpdatedJobs))
-                                .then(() => {
-                                    for (const job of changedJobs) {
-                                        if (job.status === JobStatus.Removed) {
-                                            this.notifyTorrentDelete(job);
-                                        } else {
-                                            this.notifyStatusChanged(job);
-                                        }
+                        return this.updateJobs(jobs)
+                            .then(() => {
+                                for (const job of jobs) {
+                                    if (job.status === JobStatus.Removed) {
+                                        this.notifyTorrentDelete(job);
+                                    } else if (changedJobIds.indexOf(job.id) !== -1) {
+                                        this.notifyStatusChanged(job);
                                     }
-                                });
-                        } else if (progressUpdatedJobs.length > 0) {
-                            return this.updateJobs(progressUpdatedJobs);
-                        }
+                                }
+                            });
                     })
                     .then(() => {
                         this._timerId = setTimeout(() => {
@@ -246,6 +248,24 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
 
     private notifyStatusChanged(job: DownloadJob) {
         this._statusChangeSubject.next(job.id);
+    }
+
+    private updateInfo(job: DownloadJob, qbtInfo: QBittorrentInfo): void {
+        job.status = QBittorrentDownloadAdapter.convertStateToJobStatus(qbtInfo.state);
+        job.progress = qbtInfo.progress;
+        job.torrentName = qbtInfo.name;
+        job.downloadSpeed = qbtInfo.dlspeed;
+        job.priority = qbtInfo.priority;
+        job.size = qbtInfo.size;
+        job.downloaded = qbtInfo.downloaded;
+        job.amountLeft = qbtInfo.amount_left;
+        job.availability = qbtInfo.availability;
+        job.activeTime = qbtInfo.time_active;
+        job.connectedLeechers = qbtInfo.num_leechs;
+        job.connectedSeeds = qbtInfo.num_seeds;
+        job.seeds = qbtInfo.num_complete;
+        job.leechers = qbtInfo.num_incomplete;
+        job.eta = qbtInfo.eta;
     }
 
     private async updateJobs(jobs: DownloadJob[]): Promise<void> {

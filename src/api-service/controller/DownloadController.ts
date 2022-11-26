@@ -14,13 +14,29 @@
  * limitations under the License.
  */
 
-import { controller, httpGet, httpPut, interfaces, queryParam, requestParam } from 'inversify-express-utils';
+import {
+    controller,
+    httpGet,
+    httpPut,
+    interfaces,
+    queryParam,
+    request,
+    requestParam,
+    response
+} from 'inversify-express-utils';
+import { Request, Response as ExpressResponse } from 'express';
 import { DatabaseService } from '../../service/DatabaseService';
 import { JobStatus } from '../../domain/JobStatus';
 import { DownloadJob } from '../../entity/DownloadJob';
 import { inject } from 'inversify';
 import { ResponseWrapper, TYPES } from '@irohalab/mira-shared';
 import { DownloadService } from '../../service/DownloadService';
+
+type Operation = { action: 'pause' | 'resume' | 'delete' };
+
+const OP_PAUSE = 'pause';
+const OP_RESUME = 'resume';
+const OP_DELETE = 'delete';
 
 @controller('/download')
 export class DownloadController implements interfaces.Controller {
@@ -38,6 +54,47 @@ export class DownloadController implements interfaces.Controller {
         };
     }
 
+    @httpGet('/job/:id')
+    public async getJob(@requestParam('id') id: string): Promise<ResponseWrapper<DownloadJob>> {
+        const job = await this._database.getJobRepository(true).findOne({ id });
+        if (job) {
+            return {
+                data: job,
+                status: 0
+            };
+        } else {
+            throw new Error('Job Not Found');
+        }
+    }
+
+    @httpPut('/job/:id')
+    public async jobOperation(@request() req: Request, @response() res: ExpressResponse): Promise<void> {
+        const id = req.params.id;
+        const op = req.body as Operation;
+        const jobRepo = this._database.getJobRepository(true);
+        const job = await jobRepo.findOne({ id });
+        if (job) {
+            switch(op.action) {
+                case OP_PAUSE:
+                    await this._downloadService.pause(job);
+                    break;
+                case OP_RESUME:
+                    await this._downloadService.resume(job);
+                    break;
+                case OP_DELETE:
+                    await this._downloadService.delete(job);
+                    break;
+                default:
+                    res.status(400).json({data: null, message: 'invalid action', status: 2});
+                    return;
+            }
+            await jobRepo.save(job);
+            res.status(200).json({data: null, message: 'OK', status: 0});
+        } else {
+            res.status(404).json({data: null, message: 'job not found', status: 1});
+        }
+    }
+
     @httpPut('/job/:id/resend-finish-message')
     public async resendFinishMessage(@requestParam('id') jobId: string): Promise<ResponseWrapper<any>> {
         const job = await this._database.getJobRepository(true).findOne({ id: jobId});
@@ -48,13 +105,13 @@ export class DownloadController implements interfaces.Controller {
                 data: null,
                 message: 'message resent!',
                 status: 0
-            }
+            };
         } else {
             return {
                 data: null,
                 message: 'Job not found',
                 status: 1
-            }
+            };
         }
     }
 }

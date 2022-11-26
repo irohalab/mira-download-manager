@@ -25,13 +25,13 @@ import * as cors from 'cors';
 import './controller/FileController';
 import './controller/RpcController';
 import './controller/DownloadController';
-import pino from 'pino';
 import { TYPES } from '@irohalab/mira-shared';
 import { DatabaseService } from '../service/DatabaseService';
 import { DownloadService } from '../service/DownloadService';
+import { getStdLogger } from '../utils/Logger';
 
 const DEBUG = process.env.DEBUG === 'true';
-const logger = pino();
+const logger = getStdLogger();
 
 export function bootstrap(container: Container): Server {
     const expressServer = new InversifyExpressServer(container);

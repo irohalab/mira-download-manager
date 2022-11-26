@@ -30,10 +30,11 @@ import { DownloadAdapter } from './download-adapter/DownloadAdapter';
 import { QBittorrentDownloadAdapter } from './download-adapter/QBittorrentDownloadAdapter';
 import { DelugeDownloadAdapter } from './download-adapter/DelugeDownloadAdapter';
 import { hostname } from 'os';
-import pino from 'pino';
+import { getStdLogger } from './utils/Logger';
+import { RascalImpl } from '@irohalab/mira-shared/services/RascalImpl';
 
 
-const logger = pino();
+const logger = getStdLogger();
 
 const container = new Container();
 
@@ -60,7 +61,7 @@ switch (downloader) {
 }
 
 container.bind<DatabaseService>(TYPES.DatabaseService).to(DatabaseServiceImpl).inSingletonScope();
-container.bind<RabbitMQService>(RabbitMQService).toSelf().inSingletonScope();
+container.bind<RabbitMQService>(TYPES.RabbitMQService).to(RascalImpl).inSingletonScope();
 container.bind<FileManageService>(FileManageService).toSelf().inSingletonScope();
 container.bind<DownloadService>(DownloadService).toSelf().inSingletonScope();
 container.bind<DownloadManager>(DownloadManager).toSelf().inSingletonScope();

@@ -31,12 +31,22 @@ export interface DownloadAdapter {
      * @param torrentUrlOrMagnet
      * @param downloadLocation
      */
-    download(torrentUrlOrMagnet: string, downloadLocation: string): Promise<string>
+    download(torrentUrlOrMagnet: string, downloadLocation: string): Promise<string>;
+
+    /**
+     * Pause a torrent
+     */
+    pause(torrentId: string): Promise<void>;
+
+    /**
+     * Resume a paused torrent
+     */
+    resume(torrentId: string): Promise<void>;
 
     /**
      * Remove a torrent
      */
-    remove(torrentId: string, deleteFiles: boolean): Promise<void>
+    remove(torrentId: string, deleteFiles: boolean): Promise<void>;
 
     /**
      * emit an observable when a status of torrent is changed.

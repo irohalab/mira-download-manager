@@ -14,20 +14,11 @@
  * limitations under the License.
  */
 
+import pino from 'pino';
 
-import { Entity, EntityRepositoryType, PrimaryKey, Property } from '@mikro-orm/core';
-import { CleanUpTaskRepository } from '../repository/CleanUpTaskRepository';
-import { randomUUID } from 'crypto';
-
-@Entity({ customRepository: () => CleanUpTaskRepository })
-export class CleanUpTask {
-    @PrimaryKey()
-    public id: string = randomUUID();
-
-    @Property({
-        columnType: 'text'
-    })
-    public directoryPath: string;
-
-    [EntityRepositoryType]?: CleanUpTaskRepository;
+export function getStdLogger(base?:any): pino.Logger {
+    return pino({
+        timestamp: pino.stdTimeFunctions.isoTime,
+        base
+    });
 }
