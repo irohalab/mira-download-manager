@@ -78,4 +78,12 @@ export class FakeDownloadAdapter implements DownloadAdapter {
     public torrentDeleteEvent(): Observable<string> {
         return undefined;
     }
+
+    public pause(torrentId: string): Promise<void> {
+        return Promise.resolve(undefined);
+    }
+
+    public resume(torrentId: string): Promise<void> {
+        return Promise.resolve(undefined);
+    }
 }
