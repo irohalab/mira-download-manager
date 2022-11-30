@@ -70,7 +70,12 @@ export class FileManageService {
         }
     }
 
+    /**
+     * add a random hash suffix, and replace reserved character ',' with '_'
+     * @param filename
+     */
     public static processFilename(filename: string): string {
+        filename = filename.replace(/,/ig, '_');
         const randomHash = nanoid(5);
         const e = extname(filename);
         let b = basename(filename, e);
