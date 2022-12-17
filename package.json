@@ -1,6 +1,6 @@
 {
    "name": "mira-download-manager",
-   "version": "1.0.2",
+   "version": "1.0.3",
    "description": "manage download of video files",
    "devDependencies": {
       "@types/amqplib": "^0.8.2",
@@ -25,8 +25,8 @@
       "axios": "^0.21.2",
       "cors": "^2.8.5",
       "form-data": "^4.0.0",
-      "inversify": "^5.1.1",
-      "inversify-express-utils": "^6.3.2",
+      "inversify": "^6.0.1",
+      "inversify-express-utils": "^6.4.3",
       "js-yaml": "^4.1.0",
       "nanoid": "^3.1.31",
       "parse-torrent": "^9.1.4",
