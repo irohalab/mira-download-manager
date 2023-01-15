@@ -50,4 +50,6 @@ export interface ConfigManager extends BaseConfigManager {
      * Temp solution to communicate with Albireo
      */
     albireoRPCUrl(): string;
+
+    getCompletedJobRetentionDays(): number;
 }

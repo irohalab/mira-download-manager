@@ -32,6 +32,7 @@ import { DelugeDownloadAdapter } from './download-adapter/DelugeDownloadAdapter'
 import { hostname } from 'os';
 import { getStdLogger } from './utils/Logger';
 import { RascalImpl } from '@irohalab/mira-shared/services/RascalImpl';
+import { JobCleaner } from './service/JobCleaner';
 
 
 const logger = getStdLogger();
@@ -65,18 +66,19 @@ container.bind<RabbitMQService>(TYPES.RabbitMQService).to(RascalImpl).inSingleto
 container.bind<FileManageService>(FileManageService).toSelf().inSingletonScope();
 container.bind<DownloadService>(DownloadService).toSelf().inSingletonScope();
 container.bind<DownloadManager>(DownloadManager).toSelf().inSingletonScope();
+container.bind<JobCleaner>(JobCleaner).toSelf().inSingletonScope();
 
 const databaseService = container.get<DatabaseService>(TYPES.DatabaseService);
 const downloadManager = container.get<DownloadManager>(DownloadManager);
-const fileManageService = container.get<FileManageService>(FileManageService);
+const jobCleaner = container.get<JobCleaner>(JobCleaner);
 
 databaseService.start()
     .then(() => {
         return downloadManager.start();
     })
     .then(() => {
+        jobCleaner.start();
         logger.info('download manager start');
-        fileManageService.startCleanUp();
     }, (err) => {
         logger.error(err);
         sentry.capture(err);
@@ -84,7 +86,7 @@ databaseService.start()
     });
 
 function beforeExitHandler() {
-    fileManageService.stopCleanUp();
+    jobCleaner.stop();
     downloadManager.stop()
         .then(() => {
             return databaseService.stop();

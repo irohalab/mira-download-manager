@@ -21,6 +21,6 @@ export class CleanUpTaskRepository extends BaseEntityRepository<CleanUpTask> {
     public async addTempFolderPath(tempFolderPath: string): Promise<void> {
         const task = new CleanUpTask();
         task.directoryPath = tempFolderPath;
-        await this.persist(task);
+        await this.save(task);
     }
 }
