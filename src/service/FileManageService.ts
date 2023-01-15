@@ -17,7 +17,7 @@
 import { inject, injectable } from 'inversify';
 import { ConfigManager } from '../utils/ConfigManager';
 import { URL } from 'url';
-import { copyFile, mkdir, rmdir } from 'fs/promises';
+import { copyFile, mkdir } from 'fs/promises';
 import { createWriteStream } from 'fs';
 import axios from 'axios';
 import { finished } from 'stream/promises';
@@ -27,12 +27,10 @@ import { DatabaseService } from './DatabaseService';
 import { RemoteFile, Sentry, TYPES } from '@irohalab/mira-shared';
 import { getStdLogger } from '../utils/Logger';
 
-const CLEAN_UP_INTERVAL = 5 * 60000;
 const logger = getStdLogger();
 
 @injectable()
 export class FileManageService {
-    private _cleanUpTaskTimerId: NodeJS.Timeout;
 
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
@@ -81,44 +79,6 @@ export class FileManageService {
         let b = basename(filename, e);
         b += '-' + randomHash;
         return b + e;
-    }
-
-    public startCleanUp(): void {
-        this._cleanUpTaskTimerId = setTimeout(async () => {
-            try {
-                await this.doCleanUp();
-            } catch (e) {
-                logger.warn(e);
-            }
-            this.startCleanUp();
-        }, CLEAN_UP_INTERVAL);
-    }
-
-    public stopCleanUp(): void {
-        clearTimeout(this._cleanUpTaskTimerId);
-    }
-
-    private async doCleanUp(): Promise<void> {
-        const taskRepo = this._databaseService.getCleanUpTaskRepository();
-        const tasks = await taskRepo.findAll();
-        if (tasks && tasks.length > 0) {
-            for (let task of tasks) {
-                try {
-                    logger.info('try to clean up folder ' + task.directoryPath);
-                    await rmdir(task.directoryPath, {
-                        maxRetries: 2,
-                        retryDelay: 1000
-                    });
-                    await taskRepo.remove(task);
-                } catch (e) {
-                    if (e.code !== 'ENOENT') {
-                        logger.warn(e);
-                    } else {
-                        await taskRepo.remove(task);
-                    }
-                }
-            }
-        }
     }
 
     private static async getVideoViaHttp(sourceUrl: string, savePath: string): Promise<void> {

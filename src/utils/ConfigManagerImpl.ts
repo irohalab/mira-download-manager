@@ -50,6 +50,7 @@ type AppConfig = {
     }
     appIdHostMap: { [appId: string]: string};
     albireoRPC: string;
+    completed_job_retention: number;
 };
 
 const CWD_PATTERN = /\${cwd}/;
@@ -162,5 +163,13 @@ export class ConfigManagerImpl implements ConfigManager {
         if (!this._config.downloader) {
             throw new Error('downloader is not set');
         }
+    }
+
+    public getCompletedJobRetentionDays(): number {
+        let retentionDays = this._config.completed_job_retention;
+        if (!Number.isFinite(retentionDays)) {
+            retentionDays = 30;
+        }
+        return retentionDays;
     }
 }
