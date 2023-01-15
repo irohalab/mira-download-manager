@@ -83,4 +83,8 @@ export class FakeConfigManager implements ConfigManager {
         return undefined;
     }
 
+    public getCompletedJobRetentionDays(): number {
+        return 0;
+    }
+
 }
