@@ -97,6 +97,10 @@ export class DownloadService {
         try {
             job.torrentId = await this._downloader.download(job.torrentUrl, downloadLocation);
         } catch (e) {
+            job.errorInfo = {
+                message: e.message,
+                stack: e.stack
+            };
             job.status = JobStatus.Error;
         }
         logger.debug('download hash: ' + job.torrentId);
