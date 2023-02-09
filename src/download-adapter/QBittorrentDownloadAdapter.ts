@@ -266,6 +266,9 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
         job.seeds = qbtInfo.num_complete;
         job.leechers = qbtInfo.num_incomplete;
         job.eta = qbtInfo.eta;
+        if (qbtInfo.state === QBittorrentState.missingFiles) {
+            job.errorInfo = {message: 'missingFiles'};
+        }
     }
 
     private async updateJobs(jobs: DownloadJob[]): Promise<void> {

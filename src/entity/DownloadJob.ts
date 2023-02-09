@@ -19,10 +19,11 @@ import { JobStatus } from '../domain/JobStatus';
 import { DownloadTaskMessage } from '../domain/DownloadTaskMessage';
 import { FileMapping } from '../domain/FileMapping';
 import {
+    BigIntType,
     DateTimeType,
     Entity,
     EntityRepositoryType,
-    Enum,
+    Enum, FloatType, IntegerType,
     JsonType,
     PrimaryKey,
     Property
@@ -82,80 +83,80 @@ export class DownloadJob {
     public torrentName: string;
 
     @Property({
-        columnType: 'float',
+        type: FloatType,
         default: 0
     })
     public progress: number;
 
     @Property({
-        columnType: 'float',
+        type: FloatType,
         default: 0
     })
     public downloadSpeed: number;
 
     @Property({
-        columnType: 'float',
+        type: FloatType,
         default: 0
     })
     public eta: number;
 
     @Property({
-        columnType: 'float',
+        type: FloatType,
         default: 0,
         nullable: true
     })
     public availability?: number;
 
     @Property({
-        columnType: 'integer',
+        type: IntegerType,
         default: 0
     })
     public priority: number;
 
     @Property({
-        columnType: 'integer',
+        type: BigIntType,
         default: 0
     })
     public size: number;
 
     @Property({
-        columnType: 'integer',
+        type: BigIntType,
         default: 0
     })
     public downloaded: number;
 
     @Property({
-        columnType: 'integer',
+        type: BigIntType,
         default: 0
     })
     public amountLeft: number;
 
     @Property({
-        columnType: 'integer',
+        type: IntegerType,
         default: 0
     })
     public activeTime: number;
 
     @Property({
-        columnType: 'integer',
+        type: IntegerType,
         default: 0
     })
     public seeds: number;
 
     @Property({
-        columnType: 'integer',
+        type: IntegerType,
         default: 0
     })
     public leechers: number;
 
     @Property({
-        columnType: 'integer',
+        type: IntegerType,
         default: 0
     })
     public connectedSeeds: number;
 
     @Property({
-        columnType: 'integer',
+        type: IntegerType,
         default: 0
     })
     public connectedLeechers: number;
@@ -174,6 +175,13 @@ export class DownloadJob {
         nullable: true
     })
     public endTime: Date;
+
+    @Property({
+        columnType: 'jsonb',
+        type: JsonType,
+        nullable: true
+    })
+    public errorInfo: { message?: string, stack?: string };
 
     [EntityRepositoryType]?: DownloadJobRepository;
 }

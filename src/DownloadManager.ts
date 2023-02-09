@@ -82,9 +82,10 @@ export class DownloadManager {
     }
 
     /**
-     * There are two types of message from video manager:
+     * There are three types of message from video manager:
      * 1. video doesn't have a rule, simply copy the video file to root folder
      * 2. video manager processed video file. download the file from the video manager to download location.
+     * 3. the process is initiated by Albireo server, download the processed file to destination folder.
      * @param msg
      * @private
      */
