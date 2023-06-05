@@ -136,14 +136,24 @@ export class DownloadService {
      * Copy video file from torrent save path to destination path.
      * return the copied video file path
      * @param jobId
+     * @param videoId
      * @param destPath
      */
-    public async copyVideoFile(jobId: string, destPath: string): Promise<string> {
+    public async copyVideoFile(jobId: string, videoId: string, destPath: string): Promise<string> {
         const job = await this._databaseService.getJobRepository().findOne({id: jobId});
         if (job) {
             const torrentInfo = await this._downloader.getTorrentInfo(job.torrentId);
             const torrentFiles = await this._downloader.getTorrentContent(job.torrentId);
-            const videoFile = DownloadService.findVideoFile(torrentFiles);
+            let videoFile: TorrentFile;
+            if (job.fileMapping) {
+                const mapping = job.fileMapping.find(m => m.videoId === videoId);
+                if (mapping) {
+                    videoFile = torrentFiles.find(f => f.name === mapping.filePath);
+                }
+            }
+            if (!videoFile) {
+                videoFile = DownloadService.findVideoFile(torrentFiles);
+            }
             const sourcePath = join(torrentInfo.save_path, videoFile.name);
             const videoFileDestPath = join(destPath, FileManageService.processFilename(videoFile.name));
             try {
