@@ -104,7 +104,7 @@ export class DownloadManager {
             }
         } else {
             logger.info({message: 'not processed', video_id: msg.videoId});
-            videoFileDestPathList.push(await this._downloadService.copyVideoFile(msg.downloadTaskId, savePath));
+            videoFileDestPathList.push(await this._downloadService.copyVideoFile(msg.downloadTaskId, msg.videoId, savePath));
         }
         // all work is done at download manager side.
         // TODO: deprecate this after Albireo is deprecated
