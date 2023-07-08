@@ -17,7 +17,6 @@
 import { DownloaderType } from '../domain/DownloaderType';
 import { JobStatus } from '../domain/JobStatus';
 import { DownloadTaskMessage } from '../domain/DownloadTaskMessage';
-import { FileMapping } from '../domain/FileMapping';
 import {
     BigIntType,
     DateTimeType,
@@ -30,6 +29,7 @@ import {
 } from '@mikro-orm/core';
 import { DownloadJobRepository } from '../repository/DownloadJobRepository';
 import { randomUUID } from 'crypto';
+import { FileMapping } from '@irohalab/mira-shared/domain/FileMapping';
 
 @Entity({ customRepository: () => DownloadJobRepository })
 export class DownloadJob {
