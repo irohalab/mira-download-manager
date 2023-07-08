@@ -34,7 +34,7 @@ import {
     RabbitMQService,
     RemoteFile,
     Sentry,
-    TYPES
+    TYPES,
 } from '@irohalab/mira-shared';
 import { getStdLogger } from '../utils/Logger';
 
@@ -132,6 +132,10 @@ export class DownloadService {
         }
     }
 
+    public async getTorrentContent(torrentId: string): Promise<TorrentFile[]> {
+        return await this._downloader.getTorrentContent(torrentId);
+    }
+
     /**
      * Copy video file from torrent save path to destination path.
      * return the copied video file path
@@ -187,7 +191,10 @@ export class DownloadService {
                 const msg = this.newMessage(job);
                 msg.videoId = mapping.videoId;
                 msg.videoFile = file;
-                msg.otherFiles = remoteFiles.filter((f, i) => i !== fileIndex);
+                msg.fileMapping = mapping;
+                msg.otherFiles = remoteFiles.filter((f, i) => {
+                    return job.fileMapping.every(mp => mp.filePath !== files[i].name);
+                });
                 return msg;
             });
             const promises = [];

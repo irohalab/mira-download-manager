@@ -15,9 +15,10 @@
  */
 
 import {
+    BaseHttpController,
     controller,
     httpGet,
-    httpPut,
+    httpPut, IHttpActionResult,
     interfaces,
     queryParam,
     request,
@@ -32,6 +33,7 @@ import { inject } from 'inversify';
 import { ResponseWrapper, TYPES } from '@irohalab/mira-shared';
 import { DownloadService } from '../../service/DownloadService';
 import { getStdLogger } from '../../utils/Logger';
+import { InternalServerErrorResult, NotFoundResult } from 'inversify-express-utils/lib/results';
 
 type Operation = { action: 'pause' | 'resume' | 'delete' };
 
@@ -42,36 +44,37 @@ const OP_DELETE = 'delete';
 const logger = getStdLogger();
 
 @controller('/download')
-export class DownloadController implements interfaces.Controller {
+export class DownloadController extends BaseHttpController implements interfaces.Controller {
     constructor(@inject(TYPES.DatabaseService) private _database: DatabaseService,
                 private _downloadService: DownloadService) {
+        super();
     }
 
     @httpGet('/job')
-    public async listJobs(@queryParam('status') status: string): Promise<ResponseWrapper<DownloadJob[]>> {
+    public async listJobs(@queryParam('status') status: string): Promise<IHttpActionResult> {
         const jobStatus = status as JobStatus
         const jobs = await this._database.getJobRepository(true).listJobByStatusWithDescOrder(jobStatus);
-        return {
+        return this.json({
             data: jobs || [],
             status: 0
-        };
+        });
     }
 
     @httpGet('/job/:id')
-    public async getJob(@requestParam('id') id: string): Promise<ResponseWrapper<DownloadJob>> {
+    public async getJob(@requestParam('id') id: string): Promise<IHttpActionResult> {
         const job = await this._database.getJobRepository(true).findOne({ id });
         if (job) {
-            return {
+            return this.json({
                 data: job,
                 status: 0
-            };
+            });
         } else {
-            throw new Error('Job Not Found');
+            return new NotFoundResult();
         }
     }
 
     @httpPut('/job/:id')
-    public async jobOperation(@request() req: Request, @response() res: ExpressResponse): Promise<void> {
+    public async jobOperation(@request() req: Request, @response() res: ExpressResponse): Promise<IHttpActionResult> {
         const id = req.params.id;
         const op = req.body as Operation;
         const jobRepo = this._database.getJobRepository(true);
@@ -92,14 +95,14 @@ export class DownloadController implements interfaces.Controller {
                     return;
             }
             await jobRepo.save(job);
-            res.status(200).json({data: null, message: 'OK', status: 0});
+            return this.json({data: null, message: 'OK', status: 0});
         } else {
-            res.status(404).json({data: null, message: 'job not found', status: 1});
+            return new NotFoundResult();
         }
     }
 
     @httpPut('/job/:id/resend-finish-message')
-    public async resendFinishMessage(@requestParam('id') jobId: string): Promise<ResponseWrapper<any>> {
+    public async resendFinishMessage(@requestParam('id') jobId: string): Promise<IHttpActionResult> {
         const job = await this._database.getJobRepository(true).findOne({ id: jobId});
         if (job) {
             console.log(job);
@@ -107,23 +110,42 @@ export class DownloadController implements interfaces.Controller {
                 await this._downloadService.downloadComplete(job);
             } catch (ex) {
                 logger.error(ex);
-                return {
+                return this.json({
                     data: ex,
                     message: 'error while trying to resent message',
                     status: 0
-                };
+                });
             }
-            return {
+            return this.json({
                 data: null,
                 message: 'message resent!',
                 status: 0
-            };
+            });
         } else {
-            return {
+            return this.json({
                 data: null,
                 message: 'Job not found',
                 status: 1
-            };
+            });
+        }
+    }
+
+    @httpGet('/job/:id/content')
+    public async getTorrentContent(@requestParam('id') jobId: string): Promise<IHttpActionResult> {
+        const job = await this._database.getJobRepository(true).findOne({id: jobId});
+        if (job) {
+            try {
+                const files = await this._downloadService.getTorrentContent(job.torrentId);
+                return this.json({
+                    data: files,
+                    status: 0
+                });
+            } catch (ex) {
+                logger.error(ex);
+                return new InternalServerErrorResult();
+            }
+        } else {
+            return new NotFoundResult();
         }
     }
 }

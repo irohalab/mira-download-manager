@@ -15,7 +15,7 @@
  */
 
 import { MQMessage } from '@irohalab/mira-shared';
-import { FileMapping } from './FileMapping';
+import { FileMapping } from '@irohalab/mira-shared/domain/FileMapping';
 
 export class DownloadTaskMessage implements MQMessage {
     public id: string;
