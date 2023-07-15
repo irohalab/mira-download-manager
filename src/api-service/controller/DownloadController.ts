@@ -30,10 +30,14 @@ import { DatabaseService } from '../../service/DatabaseService';
 import { JobStatus } from '../../domain/JobStatus';
 import { DownloadJob } from '../../entity/DownloadJob';
 import { inject } from 'inversify';
-import { ResponseWrapper, TYPES } from '@irohalab/mira-shared';
+import { TYPES } from '@irohalab/mira-shared';
 import { DownloadService } from '../../service/DownloadService';
 import { getStdLogger } from '../../utils/Logger';
-import { InternalServerErrorResult, NotFoundResult } from 'inversify-express-utils/lib/results';
+import {
+    BadRequestErrorMessageResult,
+    InternalServerErrorResult,
+    NotFoundResult
+} from 'inversify-express-utils/lib/results';
 
 type Operation = { action: 'pause' | 'resume' | 'delete' };
 
@@ -52,12 +56,24 @@ export class DownloadController extends BaseHttpController implements interfaces
 
     @httpGet('/job')
     public async listJobs(@queryParam('status') status: string): Promise<IHttpActionResult> {
-        const jobStatus = status as JobStatus
-        const jobs = await this._database.getJobRepository(true).listJobByStatusWithDescOrder(jobStatus);
-        return this.json({
-            data: jobs || [],
-            status: 0
-        });
+        const jobStatus = status as JobStatus | 'all';
+        if (!jobStatus) {
+            return new BadRequestErrorMessageResult('status is empty');
+        }
+        let jobs: DownloadJob[];
+        try {
+            if (jobStatus === 'all') {
+                jobs = await this._database.getJobRepository(true).listRecentJobs();
+            } else {
+                jobs = await this._database.getJobRepository(true).listJobByStatusWithDescOrder(jobStatus);
+            }
+            return this.json({
+                data: jobs || [],
+                status: 0
+            });
+        } catch (ex) {
+            return new InternalServerErrorResult();
+        }
     }
 
     @httpGet('/job/:id')

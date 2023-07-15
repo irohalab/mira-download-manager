@@ -39,6 +39,10 @@ export class DownloadJobRepository extends BaseEntityRepository<DownloadJob> {
         return await this.find({status}, {orderBy: {createTime: 'DESC'}});
     }
 
+    public async listRecentJobs(): Promise<DownloadJob[]> {
+        return await this.find({}, {orderBy: {createTime: 'DESC'}, limit: 30});
+    }
+
     public async getJobCanBeCleanUp(expireTime: number): Promise<DownloadJob[]> {
         const latestEndTime = new Date(Date.now() - expireTime);
         return await this.find({
