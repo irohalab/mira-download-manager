@@ -36,6 +36,7 @@ import { FileManageService } from './service/FileManageService';
 import axios from 'axios';
 import { promisify } from 'util';
 import { getStdLogger } from './utils/Logger';
+import { VideoMetadata } from '@irohalab/mira-shared/domain/VideoMetadata';
 
 const sleep = promisify(setTimeout);
 const logger = getStdLogger();
@@ -81,34 +82,39 @@ export class DownloadManager {
         // TODO: Clean up
     }
 
-    /**
-     * There are three types of message from video manager:
-     * 1. video doesn't have a rule, simply copy the video file to root folder
-     * 2. video manager processed video file. download the file from the video manager to download location.
-     * 3. the process is initiated by Albireo server, download the processed file to destination folder.
-     * @param msg
-     * @private
-     */
     private async onVideoManagerMessage(msg: VideoManagerMessage): Promise<void> {
         const savePath = join(this._configManager.defaultDownloadLocation(), msg.bangumiId);
         let videoFileDestPathList: string[] = [];
+        // download from video manager
+        for(const processedFile of msg.processedFiles) {
+            const filename = FileManageService.processFilename(basename(processedFile.filename));
+            const videoFileDestPath = join(savePath, filename);
+            await this._fileManageService.download(processedFile, videoFileDestPath, msg.jobExecutorId);
+            videoFileDestPathList.push(videoFileDestPath);
+        }
+        // download thumbnail and keyframes image
+        let metadata = null;
+        if (msg.metadata) {
+            const thumbnailFilename = FileManageService.processFilename(basename(msg.metadata.thumbnailPath.filename));
+            const thumbnailPath = join(savePath, thumbnailFilename);
+            await this._fileManageService.download(msg.metadata.thumbnailPath, thumbnailPath, msg.jobExecutorId);
+            const keyframeImagePathList: string[] = [];
+            for (const kfImageRemoteFile of msg.metadata.keyframeImagePathList ) {
+                const keyframeImageFilename = FileManageService.processFilename(basename(kfImageRemoteFile.filename));
+                const keyframeImagePath = join(savePath, keyframeImageFilename);
+                await this._fileManageService.download(kfImageRemoteFile, keyframeImagePath, msg.jobExecutorId);
+                keyframeImagePathList.push(keyframeImagePath);
+            }
+            metadata = Object.assign({}, msg.metadata, {thumbnailPath, keyframeImagePathList});
+        }
         if (msg.isProcessed) {
             logger.info({message: 'video processed', video_id: msg.videoId, filenames: `[${msg.processedFiles.join(', ')}]`});
-            // TODO: change processedFile to processedFiles
-            // download from video manager
-            for(const processedFile of msg.processedFiles) {
-                const filename = FileManageService.processFilename(basename(processedFile.filename));
-                const videoFileDestPath = join(savePath, filename);
-                await this._fileManageService.download(processedFile, videoFileDestPath, msg.jobExecutorId);
-                videoFileDestPathList.push(videoFileDestPath);
-            }
         } else {
             logger.info({message: 'not processed', video_id: msg.videoId});
-            videoFileDestPathList.push(await this._downloadService.copyVideoFile(msg.downloadTaskId, msg.videoId, savePath));
         }
         // all work is done at download manager side.
         // TODO: deprecate this after Albireo is deprecated
-        await this.callAlbireoRpc(msg, videoFileDestPathList);
+        await this.callAlbireoRpc(msg, videoFileDestPathList, metadata);
     }
 
     private async onDownloadTask(msg: DownloadTaskMessage): Promise<void> {
@@ -123,22 +129,27 @@ export class DownloadManager {
         await this._downloadService.download(job);
     }
 
-    private async callAlbireoRpc(msg: VideoManagerMessage, videoFileDestPathList: string[]): Promise<void> {
+    private async callAlbireoRpc(msg: VideoManagerMessage, videoFileDestPathList: string[],
+                                 metadata: Omit<VideoMetadata, 'thumbnailPath' | 'keyframeImagePathList'> & {thumbnailPath: string, keyframeImagePathList: string[]}): Promise<void> {
         const rpcUrl = this._configManager.albireoRPCUrl();
         // save relative path, relative to bangumi folder
 
         const normalizedVideoFileDestPath = videoFileDestPathList.map((videoFileDestPath) => {
             return videoFileDestPath.substring(videoFileDestPath.indexOf(msg.bangumiId) + msg.bangumiId.length + 1, videoFileDestPath.length)
         });
-        await axios.get(`${rpcUrl}/download_complete`, {
-            params: {
-                video_id: msg.videoId,
-                bangumi_id: msg.bangumiId,
-                file_path_list: encodeURIComponent(normalizedVideoFileDestPath.join(','))
-            },
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
-            }
+
+        if (metadata && metadata.thumbnailPath) {
+            metadata.thumbnailPath = metadata.thumbnailPath.substring(metadata.thumbnailPath.indexOf(msg.bangumiId), metadata.thumbnailPath.length);
+        }
+        if (metadata && metadata.keyframeImagePathList) {
+            metadata.keyframeImagePathList = metadata.keyframeImagePathList.map(p => p.substring(p.indexOf(msg.bangumiId), p.length));
+        }
+
+        await axios.post(`${rpcUrl}/download_complete`, {
+            video_id: msg.videoId,
+            bangumi_id: msg.bangumiId,
+            file_path_list: normalizedVideoFileDestPath,
+            metadata: metadata
         });
     }
 

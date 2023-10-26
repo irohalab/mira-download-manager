@@ -36,10 +36,10 @@
   dependencies:
     "@cspotcode/source-map-consumer" "0.8.0"
 
-"@irohalab/mira-shared@3.5.0":
-  version "3.5.0"
-  resolved "https://registry.yarnpkg.com/@irohalab/mira-shared/-/mira-shared-3.5.0.tgz#4d597c116da2450c5d2f922cf34bf60d736de2f4"
-  integrity sha512-ParorWs2DrJvhBdt6sniarol3fKxB4mENotAaFtVizldfZvOT1AP2u3z18RU653G4zbMwN4Vo0jf+oC0CaEMAw==
+"@irohalab/mira-shared@3.7.0":
+  version "3.7.0"
+  resolved "https://registry.yarnpkg.com/@irohalab/mira-shared/-/mira-shared-3.7.0.tgz#d135ecb48bf8c17e350e7f97e3c594f758293d87"
+  integrity sha512-3N1kNv6xL+paPFu1QTj56wt9ZWXxOg9mhB57xl1nPrDzR6xK+zIBnHk/OObi5NON7kc4Az+xT8tBtZuUDA50kg==
   dependencies:
     "@cloudamqp/amqp-client" "^2.1.0"
     "@mikro-orm/core" "^5.5.3"
