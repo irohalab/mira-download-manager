@@ -37,43 +37,53 @@ import {
     TYPES,
 } from '@irohalab/mira-shared';
 import { getStdLogger } from '../utils/Logger';
+import { S3Service } from './S3Service';
+import { DownloadedObject } from '../entity/DownloadedObject';
 
 const logger = getStdLogger();
 
 @injectable()
 export class DownloadService {
-    constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
-                @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
-                @inject(TYPES_DM.Downloader) private _downloader: DownloadAdapter,
-                @inject(TYPES.Sentry) private _sentry: Sentry,
-                @inject(TYPES.RabbitMQService) private _mqService: RabbitMQService) {
+    constructor(@inject(TYPES.ConfigManager) private configManager: ConfigManager,
+                @inject(TYPES.DatabaseService) private databaseService: DatabaseService,
+                @inject(TYPES_DM.Downloader) private downloader: DownloadAdapter,
+                @inject(TYPES.Sentry) private sentry: Sentry,
+                private s3Service: S3Service,
+                @inject(TYPES.RabbitMQService) private mqService: RabbitMQService) {
     }
 
     public async start(enableEvent: boolean = true): Promise<void> {
-        await this._downloader.connect(enableEvent);
+        await this.downloader.connect(enableEvent);
 
         if (enableEvent) {
-            this._downloader.downloadStatusChanged()
+            this.downloader.downloadStatusChanged()
                 .pipe(
                     filter(jobId => !!jobId),
                     mergeMap((jobId: string) => {
-                        return this._databaseService.getJobRepository().findOne({id: jobId});
+                        return this.databaseService.getJobRepository().findOne({id: jobId});
                     }),
                     filter((job: DownloadJob) => {
                         return job && job.status === JobStatus.Complete;
                     }),
                     mergeMap((job: DownloadJob) => {
                         job.endTime = new Date();
-                        return this._databaseService.getJobRepository().save(job);
+                        return this.databaseService.getJobRepository().save(job);
                     })
                 )
                 .subscribe((job: DownloadJob | undefined) => {
                     this.downloadComplete(job).then(() => {
                         logger.info('download complete');
+                    }).catch((error) => {
+                        job.status = JobStatus.Error;
+                        job.errorInfo = {
+                            message: error.message,
+                            stack: error.stack
+                        };
+                        logger.error(error);
                     });
                 });
 
-            this._downloader.torrentDeleteEvent()
+            this.downloader.torrentDeleteEvent()
                 .pipe(
                     filter(jobId => !!jobId)
                 )
@@ -84,7 +94,7 @@ export class DownloadService {
     }
 
     public async download(job: DownloadJob): Promise<void> {
-        const downloader = this._configManager.downloader() as DownloaderType;
+        const downloader = this.configManager.downloader() as DownloaderType;
         switch(downloader) {
             case DownloaderType.qBittorrent:
                 job.downloader = DownloaderType.qBittorrent;
@@ -93,9 +103,9 @@ export class DownloadService {
                 job.downloader = DownloaderType.Deluge;
                 break;
         }
-        const downloadLocation = join(this._configManager.defaultDownloadLocation(), job.bangumiId);
+        const downloadLocation = join(this.configManager.defaultDownloadLocation(), job.bangumiId);
         try {
-            job.torrentId = await this._downloader.download(job.torrentUrl, downloadLocation);
+            job.torrentId = await this.downloader.download(job.torrentUrl, downloadLocation);
         } catch (e) {
             job.errorInfo = {
                 message: e.message,
@@ -104,36 +114,36 @@ export class DownloadService {
             job.status = JobStatus.Error;
         }
         logger.debug('download hash: ' + job.torrentId);
-        await this._databaseService.getJobRepository().save(job);
+        await this.databaseService.getJobRepository().save(job);
         logger.debug('downloadJob id: ' + job.id);
     }
 
     public async pause(job: DownloadJob, saveJob = false): Promise<void> {
-        await this._downloader.pause(job.torrentId);
+        await this.downloader.pause(job.torrentId);
         job.status = JobStatus.Paused;
         if (saveJob) {
-            await this._databaseService.getJobRepository().save(job);
+            await this.databaseService.getJobRepository().save(job);
         }
     }
 
     public async resume(job: DownloadJob, saveJob = false): Promise<void> {
-        await this._downloader.resume(job.torrentId);
+        await this.downloader.resume(job.torrentId);
         job.status = JobStatus.Pending;
         if (saveJob) {
-            await this._databaseService.getJobRepository().save(job);
+            await this.databaseService.getJobRepository().save(job);
         }
     }
 
     public async delete(job: DownloadJob, saveJob = false): Promise<void> {
-        await this._downloader.remove(job.torrentId, true);
+        await this.downloader.remove(job.torrentId, true);
         job.status = JobStatus.Removed;
         if (saveJob) {
-            await this._databaseService.getJobRepository().save(job);
+            await this.databaseService.getJobRepository().save(job);
         }
     }
 
     public async getTorrentContent(torrentId: string): Promise<TorrentFile[]> {
-        return await this._downloader.getTorrentContent(torrentId);
+        return await this.downloader.getTorrentContent(torrentId);
     }
 
     /**
@@ -144,10 +154,10 @@ export class DownloadService {
      * @param destPath
      */
     public async copyVideoFile(jobId: string, videoId: string, destPath: string): Promise<string> {
-        const job = await this._databaseService.getJobRepository().findOne({id: jobId});
+        const job = await this.databaseService.getJobRepository().findOne({id: jobId});
         if (job) {
-            const torrentInfo = await this._downloader.getTorrentInfo(job.torrentId);
-            const torrentFiles = await this._downloader.getTorrentContent(job.torrentId);
+            const torrentInfo = await this.downloader.getTorrentInfo(job.torrentId);
+            const torrentFiles = await this.downloader.getTorrentContent(job.torrentId);
             let videoFile: TorrentFile;
             if (job.fileMapping) {
                 const mapping = job.fileMapping.find(m => m.videoId === videoId);
@@ -165,7 +175,7 @@ export class DownloadService {
                 await mkdir(destDir, {recursive: true});
                 await copyFile(sourcePath, videoFileDestPath);
             } catch (ex) {
-                this._sentry.capture(ex);
+                this.sentry.capture(ex);
                 logger.warn(ex);
             }
             return videoFileDestPath;
@@ -173,17 +183,47 @@ export class DownloadService {
     }
 
     public async downloadComplete(job: DownloadJob): Promise<void> {
-        const files = await this._downloader.getTorrentContent(job.torrentId);
-        const info = await this._downloader.getTorrentInfo(job.torrentId);
+        const files = await this.downloader.getTorrentContent(job.torrentId);
+        const info = await this.downloader.getTorrentInfo(job.torrentId);
         const savePath = info.save_path;
         const remoteFiles = files
             .map(f => {
                 const rf = new RemoteFile();
                 rf.filename = basename(f.name);
                 rf.fileLocalPath = join(savePath, f.name);
-                rf.fileUri = this._configManager.getFileUrl(f.name, job.id);
+                rf.fileUri = this.configManager.getFileUrl(f.name, job.id);
                 return rf;
             });
+
+
+        if (this.configManager.storageType() === 'S3') {
+            const dlObjRepo = this.databaseService.getDownloadedObjectRepository();
+            const expireInDays = this.configManager.s3Bucket().expireInDays;
+            const downloadedObjects = await job.downloadedObjects.load();
+            const newlyUploadedObjects: DownloadedObject[] = [];
+            for (const remoteFile of remoteFiles) {
+                if (downloadedObjects.length > 0) {
+                    const obj = downloadedObjects.find(obj => obj.localPath === remoteFile.fileLocalPath);
+                    if (obj) {
+                        remoteFile.fileUri = obj.s3Uri;
+                        logger.info(`${remoteFile.fileUri} was found for file ${remoteFile.fileLocalPath}, use it directly`);
+                        continue;
+                    }
+                }
+                remoteFile.fileUri = await this.s3Service.upload(remoteFile.fileLocalPath);
+                const obj = new DownloadedObject();
+                obj.s3Uri = remoteFile.fileUri;
+                obj.expiration = new Date(Date.now() + expireInDays * 24 * 3600);
+                obj.name = remoteFile.filename;
+                obj.downloadJob = job;
+                newlyUploadedObjects.push(obj);
+                logger.info(`uploaded ${remoteFile.fileUri}`);
+            }
+            if (newlyUploadedObjects.length > 0) {
+                await dlObjRepo.save(newlyUploadedObjects);
+            }
+        }
+
         if (job.fileMapping) {
             const messages = job.fileMapping.map((mapping) => {
                 const fileIndex = files.findIndex(f => f.name === mapping.filePath);
@@ -199,7 +239,7 @@ export class DownloadService {
             });
             const promises = [];
             for (const message of messages) {
-                promises.push(this._mqService.publish(DOWNLOAD_MESSAGE_EXCHANGE, '', message));
+                promises.push(this.mqService.publish(DOWNLOAD_MESSAGE_EXCHANGE, '', message));
             }
             await Promise.all(promises);
             console.log('all message sent');
@@ -212,9 +252,9 @@ export class DownloadService {
             message.videoFile = new RemoteFile();
             message.videoFile.filename = basename(videoFile.name);
             message.videoFile.fileLocalPath = join(savePath, videoFile.name);
-            message.videoFile.fileUri = this._configManager.getFileUrl(videoFile.name, job.id);
+            message.videoFile.fileUri = this.configManager.getFileUrl(videoFile.name, job.id);
             message.otherFiles.splice(message.otherFiles.findIndex(f => f.filename === message.videoFile.filename), 1);
-            await this._mqService.publish(DOWNLOAD_MESSAGE_EXCHANGE, '', message);
+            await this.mqService.publish(DOWNLOAD_MESSAGE_EXCHANGE, '', message);
             console.log('message sent');
         }
     }
@@ -224,7 +264,7 @@ export class DownloadService {
         msg.id = uuid4();
         msg.downloadTaskId = job.id;
         msg.bangumiId = job.bangumiId;
-        msg.downloadManagerId = this._configManager.applicationId();
+        msg.downloadManagerId = this.configManager.applicationId();
         msg.videoId = job.videoId;
         return msg;
     }

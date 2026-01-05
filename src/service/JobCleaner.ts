@@ -110,12 +110,12 @@ export class JobCleaner {
                         retryDelay: 1000,
                         recursive: true
                     });
-                    await taskRepo.remove(task);
+                    taskRepo.remove(task);
                 } catch (e) {
                     if (e.code !== 'ENOENT') {
                         logger.warn(e);
                     } else {
-                        await taskRepo.remove(task);
+                        taskRepo.remove(task);
                     }
                 }
             }

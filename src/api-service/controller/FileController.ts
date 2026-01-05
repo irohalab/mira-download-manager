@@ -16,13 +16,14 @@
 
 import { Response as ExpressResponse } from 'express';
 import {
+    BaseHttpController,
     controller,
     httpDelete,
-    httpGet,
+    httpGet, IHttpActionResult,
     interfaces,
     queryParam,
     requestParam,
-    response, TYPE
+    response
 } from 'inversify-express-utils';
 import { inject } from 'inversify';
 import { TYPES_DM } from '../../TYPES_DM';
@@ -32,19 +33,20 @@ import { stat } from 'fs/promises';
 import { DatabaseService } from '../../service/DatabaseService';
 import { DownloadAdapter } from '../../download-adapter/DownloadAdapter';
 import { QBittorrentDownloadAdapter } from '../../download-adapter/QBittorrentDownloadAdapter';
-import { Sentry, TYPES } from '@irohalab/mira-shared';
+import { JsonResultFactory, Sentry, TYPES } from '@irohalab/mira-shared';
 import { getStdLogger } from '../../utils/Logger';
 
 const logger = getStdLogger();
 
 @controller('/file')
-export class FileController implements interfaces.Controller {
+export class FileController extends BaseHttpController implements interfaces.Controller {
     // private readonly _videoTempPath: string;
     private readonly _message404 = 'file not found';
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 @inject(TYPES.DatabaseService) private _database: DatabaseService,
                 @inject(TYPES_DM.Downloader) private _downloader: DownloadAdapter,
                 @inject(TYPES.Sentry) private _sentry: Sentry) {
+        super();
         // this._videoTempPath = this._configManager.videoFileTempDir();
     }
 
@@ -101,18 +103,23 @@ export class FileController implements interfaces.Controller {
 
     @httpDelete('/torrent/:downloadTaskId')
     public async removeTorrent(@requestParam('downloadTaskId') downloadTaskId: string,
-                               @response() res: ExpressResponse): Promise<void> {
+                               @response() res: ExpressResponse): Promise<IHttpActionResult> {
         logger.info('remove torrent' + downloadTaskId);
         const repo = this._database.getJobRepository(true);
-        const job = await repo.findOne({downloadTaskMessageId: downloadTaskId});
-        if (job) {
-            const torrentId = job.torrentId;
-            await this._downloader.remove(torrentId, true);
-            this._sentry.capture({message: 'remove torrent', downloadTaskId: downloadTaskId, torrentId: torrentId, job: job});
-            res.status(200).json({'message': 'ok'});
-        } else {
-            this._sentry.capture({ downloadTaskId, message: 'unable to remove torrent, job not found'});
-            res.status(404).json({'message': this._message404});
+        try {
+            const job = await repo.findOne({downloadTaskMessageId: downloadTaskId});
+            if (job) {
+                const torrentId = job.torrentId;
+                await this._downloader.remove(torrentId, true);
+                this._sentry.capture({message: 'remove torrent', downloadTaskId: downloadTaskId, torrentId: torrentId, job: job});
+                return JsonResultFactory(200);
+            } else {
+                this._sentry.capture({ downloadTaskId, message: 'unable to remove torrent, job not found'});
+                return JsonResultFactory(400);
+            }
+        } catch (ex) {
+            logger.error(ex);
+            return JsonResultFactory(500);
         }
     }
 }

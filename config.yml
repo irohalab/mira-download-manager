@@ -33,3 +33,28 @@ albireoRPC: 'http://localhost:8080'
 
 # how long to remove completed download job.
 completed_job_retention: 30 # days
+
+# S3 or Filesystem
+storage_type: 'S3'
+
+# this will be passed into S3Client() as configuration
+s3_config:
+  endpoint: 'http://127.0.0.1:8333'
+  # specify region since it is mandatory, but it will be ignored by seaweedfs
+  region: 'us-east-1'
+  # force path style for compatibility reasons
+  forcePathStyle: true
+  # dual stack endpoint is not supported by seaweed
+  useDualstackEndpoint: false
+  # checksum validation should be disabled, overwise `x-amz-checksum` will be injected directly into files
+  responseChecksumValidation: 'WHEN_REQUIRED'
+  requestChecksumCalculation: 'WHEN_REQUIRED'
+  # credentials are mandatory and s3 authorization should be enabled with `s3.configure`
+  credentials:
+    accessKeyId: 'admin'
+    secretAccessKey: 'admin'
+
+# This bucket is used to share downloaded file with mira-video-manager.
+s3_bucket:
+  name: 'internal-download-files'
+  expireInDays: 3 # Indicates the lifetime, in days, of the objects that are subject to the rule. The value must be a non-zero positive integer.

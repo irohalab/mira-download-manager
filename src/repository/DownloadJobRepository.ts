@@ -18,6 +18,7 @@ import { DownloadJob } from '../entity/DownloadJob';
 import { DownloaderType } from '../domain/DownloaderType';
 import { JobStatus } from '../domain/JobStatus';
 import { BaseEntityRepository } from '@irohalab/mira-shared/repository/BaseEntityRepository';
+import { FilterQuery, FindOptions } from '@mikro-orm/core';
 
 export class DownloadJobRepository extends BaseEntityRepository<DownloadJob> {
     public async listUnsettledJobs(downloaderType: DownloaderType): Promise<DownloadJob[]> {
@@ -35,12 +36,20 @@ export class DownloadJobRepository extends BaseEntityRepository<DownloadJob> {
         });
     }
 
-    public async listJobByStatusWithDescOrder(status: JobStatus): Promise<DownloadJob[]> {
-        return await this.find({status}, {orderBy: {createTime: 'DESC'}});
-    }
-
-    public async listRecentJobs(): Promise<DownloadJob[]> {
-        return await this.find({}, {orderBy: {createTime: 'DESC'}, limit: 30});
+    public async listJobs(status:  JobStatus | 'all', bangumiId?: string): Promise<DownloadJob[]> {
+        const queryFilter: FilterQuery<DownloadJob> = {};
+        const findOptions: FindOptions<DownloadJob> = {
+            orderBy: {createTime: 'DESC'}
+        };
+        if (status === 'all') {
+            findOptions.limit = 30;
+        } else {
+            queryFilter.status = status;
+        }
+        if (bangumiId) {
+            queryFilter.bangumiId = bangumiId;
+        }
+        return await this.find(queryFilter, findOptions);
     }
 
     public async getJobCanBeCleanUp(expireTime: number): Promise<DownloadJob[]> {

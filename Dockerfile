@@ -3,8 +3,8 @@ WORKDIR /app
 
 FROM base AS dev
 COPY package.json /app/package.json
-COPY yarn.lock /app/yarn.lock
-RUN yarn
+COPY package-lock.json /app/package-lock.json
+RUN npm ci
 COPY . /app/
 
 FROM dev AS prod

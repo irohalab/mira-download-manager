@@ -17,3 +17,8 @@
 export const TYPES_DM = {
     Downloader: Symbol.for('Downloader')
 };
+
+export type S3BucketConfig = {
+    name: string;
+    expireInDays: number;
+}

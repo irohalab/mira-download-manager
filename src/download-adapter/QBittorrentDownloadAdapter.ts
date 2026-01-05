@@ -19,7 +19,7 @@ import { inject, injectable } from 'inversify';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { ConfigManager } from '../utils/ConfigManager';
 import axios from 'axios';
-import * as FormData from 'form-data';
+import FormData from 'form-data';
 import { join } from 'path';
 import { nanoid } from 'nanoid';
 import { QBittorrentInfo } from '../domain/QBittorrentInfo';
@@ -33,7 +33,6 @@ import { TorrentInfo } from '../domain/TorrentInfo';
 import { getTorrentHash } from '../utils/torrent-utils';
 import { promisify } from 'util';
 import { Sentry, TYPES } from '@irohalab/mira-shared';
-import Timer = NodeJS.Timer;
 import { getStdLogger } from '../utils/Logger';
 
 const TMP_ID_SIZE = 8;
@@ -49,7 +48,7 @@ const logger = getStdLogger();
 export class QBittorrentDownloadAdapter implements DownloadAdapter {
     private readonly _baseUrl: string;
     public _cookie: string;
-    private _timerId: Timer;
+    private _timerId: NodeJS.Timeout;
     private _statusChangeSubject = new BehaviorSubject<string>(null);
     private _deleteSubject = new BehaviorSubject<string>(null);
 
@@ -329,9 +328,9 @@ export class QBittorrentDownloadAdapter implements DownloadAdapter {
 
     /**
      * send request to qbittorrent daemon, when auth failed try re-auth.
-     * @param pathname, relative path name with the leading slash
-     * @param params, params of axios
-     * @param retried, internal used only
+     * @param pathname relative path name with the leading slash
+     * @param params params of axios
+     * @param retried internal used only
      * @private
      */
     private async sendRequest(pathname: string, params: any, retried: boolean = false): Promise<any> {

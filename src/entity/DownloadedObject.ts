@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 IROHA LAB
+ * Copyright 2025 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,27 @@
  * limitations under the License.
  */
 
-
-import { Entity, EntityRepositoryType, PrimaryKey, Property } from '@mikro-orm/core';
-import { CleanUpTaskRepository } from '../repository/CleanUpTaskRepository';
+import { DownloadJob } from './DownloadJob';
+import { Entity, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
 import { randomUUID } from 'crypto';
 
-@Entity({ repository: () => CleanUpTaskRepository })
-export class CleanUpTask {
+@Entity()
+export class DownloadedObject {
     @PrimaryKey()
     public id: string = randomUUID();
 
-    @Property({
-        columnType: 'text'
-    })
-    public directoryPath: string;
+    @Property()
+    public name: string;
 
-    [EntityRepositoryType]?: CleanUpTaskRepository;
+    @Property()
+    public localPath: string;
+
+    @Property()
+    public s3Uri: string;
+
+    @Property()
+    public expiration?: Date;
+
+    @ManyToOne(() => DownloadJob)
+    public downloadJob: DownloadJob;
 }

@@ -33,6 +33,7 @@ import { hostname } from 'os';
 import { getStdLogger } from './utils/Logger';
 import { RascalImpl } from '@irohalab/mira-shared/services/RascalImpl';
 import { JobCleaner } from './service/JobCleaner';
+import { S3Service } from './service/S3Service';
 
 
 const logger = getStdLogger();
@@ -67,19 +68,21 @@ container.bind<FileManageService>(FileManageService).toSelf().inSingletonScope()
 container.bind<DownloadService>(DownloadService).toSelf().inSingletonScope();
 container.bind<DownloadManager>(DownloadManager).toSelf().inSingletonScope();
 container.bind<JobCleaner>(JobCleaner).toSelf().inSingletonScope();
+container.bind<S3Service>(S3Service).toSelf().inSingletonScope();
 
 const databaseService = container.get<DatabaseService>(TYPES.DatabaseService);
 const downloadManager = container.get<DownloadManager>(DownloadManager);
 const jobCleaner = container.get<JobCleaner>(JobCleaner);
+const s3Service = container.get<S3Service>(S3Service);
 
 databaseService.start()
-    .then(() => {
-        return downloadManager.start();
-    })
-    .then(() => {
+    .then(async () => {
+        await s3Service.ensureBucket();
+        await downloadManager.start();
         jobCleaner.start();
         logger.info('download manager start');
-    }, (err) => {
+    })
+    .catch((err) => {
         logger.error(err);
         sentry.capture(err);
         process.exit(-1);

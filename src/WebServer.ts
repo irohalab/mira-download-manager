@@ -39,6 +39,7 @@ import {
 import { DownloadService } from './service/DownloadService';
 import { getStdLogger } from './utils/Logger';
 import { RascalImpl } from '@irohalab/mira-shared/services/RascalImpl';
+import { S3Service } from './service/S3Service';
 
 const logger = getStdLogger();
 
@@ -53,6 +54,7 @@ sentry.setup(`download_manager_api_server_${hostname()}`, 'mira-download-manager
 container.bind<ConfigManager>(TYPES.ConfigManager).to(ConfigManagerImpl).inSingletonScope();
 container.bind<DatabaseService>(TYPES.DatabaseService).to(DatabaseServiceImpl).inSingletonScope();
 container.bind<RabbitMQService>(TYPES.RabbitMQService).to(RascalImpl).inSingletonScope();
+container.bind<S3Service>(S3Service).toSelf().inSingletonScope();
 
 const downloader = container.get<ConfigManager>(TYPES.ConfigManager).downloader() as DownloaderType;
 

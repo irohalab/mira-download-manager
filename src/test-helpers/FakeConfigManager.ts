@@ -19,10 +19,24 @@ import { injectable } from 'inversify';
 import { QBittorrentConfig } from '../domain/QBittorrentConfig';
 import { Options } from 'amqplib';
 import { MikroORMOptions } from '@mikro-orm/core/utils/Configuration';
-import { PostgreSqlDriver } from '@mikro-orm/postgresql';
+import { PostgreSqlDriver, SqlEntityManager } from '@mikro-orm/postgresql';
+import { S3ClientConfig } from '@aws-sdk/client-s3';
+import { S3BucketConfig } from '../TYPES_DM';
 
 @injectable()
 export class FakeConfigManager implements ConfigManager {
+    public storageType(): 'S3' | 'Filesystem' {
+        throw new Error('Method not implemented.');
+    }
+
+    public s3Config(): S3ClientConfig {
+        throw new Error('Method not implemented.');
+    }
+
+    public s3Bucket(): S3BucketConfig {
+        throw new Error('Method not implemented.');
+    }
+
     public albireoRPCUrl(): string {
         return '';
     }
@@ -79,7 +93,7 @@ export class FakeConfigManager implements ConfigManager {
         return 0;
     }
 
-    public databaseConfig(): MikroORMOptions<PostgreSqlDriver> {
+    public databaseConfig(): MikroORMOptions<PostgreSqlDriver, SqlEntityManager<PostgreSqlDriver>> {
         return undefined;
     }
 

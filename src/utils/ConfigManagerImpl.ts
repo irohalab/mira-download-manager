@@ -22,10 +22,12 @@ import { QBittorrentConfig } from '../domain/QBittorrentConfig';
 import { Options } from 'amqplib';
 import * as os from 'os';
 import { ConfigManager } from './ConfigManager';
-import { PostgreSqlDriver } from '@mikro-orm/postgresql';
+import { PostgreSqlDriver, SqlEntityManager } from '@mikro-orm/postgresql';
 import { MikroORMOptions } from '@mikro-orm/core/utils/Configuration';
 import { MiraNamingStrategy, ORMConfig } from '@irohalab/mira-shared';
-import { NamingStrategy } from '@mikro-orm/core/naming-strategy';
+import { S3ClientConfig } from '@aws-sdk/client-s3';
+import { Migrator, TSMigrationGenerator } from '@mikro-orm/migrations';
+import { S3BucketConfig } from '../TYPES_DM';
 
 type AppConfig = {
     amqp: {
@@ -48,9 +50,12 @@ type AppConfig = {
         host: string;
         port: number;
     }
-    appIdHostMap: { [appId: string]: string};
+    appIdHostMap: { [appId: string]: string };
     albireoRPC: string;
     completed_job_retention: number;
+    storage_type: 'S3' | 'Filesystem';
+    s3_config: S3ClientConfig;
+    s3_bucket: S3BucketConfig;
 };
 
 const CWD_PATTERN = /\${cwd}/;
@@ -65,9 +70,21 @@ export class ConfigManagerImpl implements ConfigManager {
     constructor() {
         const ormConfigPath = process.env.ORMCONFIG || resolve(__dirname, '../../ormconfig.json');
         const appConfigPath = process.env.APPCONFIG || resolve(__dirname, '../../config.yml');
-        this._config = loadYaml(readFileSync(appConfigPath, { encoding: 'utf-8'})) as AppConfig;
+        this._config = loadYaml(readFileSync(appConfigPath, {encoding: 'utf-8'})) as AppConfig;
         this._ormConfig = JSON.parse(readFileSync(ormConfigPath, {encoding: 'utf-8'}));
         this.verifyConfig();
+    }
+
+    public storageType(): 'S3' | 'Filesystem' {
+        return this._config.storage_type;
+    }
+
+    public s3Config(): S3ClientConfig {
+        return this._config.s3_config;
+    }
+
+    public s3Bucket(): S3BucketConfig {
+        return this._config.s3_bucket;
     }
 
     public downloader(): string {
@@ -90,8 +107,27 @@ export class ConfigManagerImpl implements ConfigManager {
         return this._config.qBittorrent;
     }
 
-    public databaseConfig(): MikroORMOptions<PostgreSqlDriver> {
-        return Object.assign({namingStrategy: MiraNamingStrategy as new() => NamingStrategy}, this._ormConfig) as MikroORMOptions<PostgreSqlDriver>;
+    public databaseConfig(): MikroORMOptions<PostgreSqlDriver, SqlEntityManager<PostgreSqlDriver>> {
+        return Object.assign({
+            debug: process.env.NODE_ENV !== 'production',
+            driver: PostgreSqlDriver,
+            namingStrategy: MiraNamingStrategy,
+            extensions: [Migrator],
+            migrations: {
+                tableName: 'mikro_orm_migrations',
+                path: 'dist/migrations',
+                pathTs: 'src/migrations',
+                glob: '!(*.d).{js,ts}',
+                transactional: true,
+                disableForeignKeys: true,
+                allOrNothing: true,
+                dropTables: true,
+                safe: false,
+                snapshot: true,
+                emit: 'ts',
+                generator: TSMigrationGenerator
+            }
+        }, this._ormConfig) as unknown as MikroORMOptions<PostgreSqlDriver, SqlEntityManager<PostgreSqlDriver>>;
     }
 
     public amqpServerUrl(): string {
