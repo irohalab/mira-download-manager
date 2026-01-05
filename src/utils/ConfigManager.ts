@@ -16,6 +16,8 @@
 
 import { QBittorrentConfig } from '../domain/QBittorrentConfig';
 import { BaseConfigManager } from '@irohalab/mira-shared';
+import { S3ClientConfig } from '@aws-sdk/client-s3';
+import { S3BucketConfig } from '../TYPES_DM';
 
 export interface ConfigManager extends BaseConfigManager {
     downloader(): string;
@@ -52,4 +54,10 @@ export interface ConfigManager extends BaseConfigManager {
     albireoRPCUrl(): string;
 
     getCompletedJobRetentionDays(): number;
+
+    storageType(): 'S3' | 'Filesystem';
+
+    s3Config(): S3ClientConfig;
+
+    s3Bucket(): S3BucketConfig;
 }

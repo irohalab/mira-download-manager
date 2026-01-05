@@ -40,6 +40,7 @@ import { VideoMetadata } from '@irohalab/mira-shared/domain/VideoMetadata';
 
 const sleep = promisify(setTimeout);
 const logger = getStdLogger();
+const S3_URL_PATTERN = /^s3:\/\/.+/;
 
 @injectable()
 export class DownloadManager {
@@ -85,25 +86,39 @@ export class DownloadManager {
     private async onVideoManagerMessage(msg: VideoManagerMessage): Promise<void> {
         const savePath = join(this._configManager.defaultDownloadLocation(), msg.bangumiId);
         let videoFileDestPathList: string[] = [];
+        let isBlobUrl: boolean = false;
         // download from video manager
         for(const processedFile of msg.processedFiles) {
-            const filename = FileManageService.processFilename(basename(processedFile.filename));
-            const videoFileDestPath = join(savePath, filename);
-            await this._fileManageService.download(processedFile, videoFileDestPath, msg.jobExecutorId);
-            videoFileDestPathList.push(videoFileDestPath);
+            if (DownloadManager.isS3Url(processedFile.fileUri)) {
+                isBlobUrl = true;
+                videoFileDestPathList.push(processedFile.fileUri);
+            } else {
+                const filename = FileManageService.processFilename(basename(processedFile.filename));
+                const videoFileDestPath = join(savePath, filename);
+                await this._fileManageService.download(processedFile, videoFileDestPath, msg.jobExecutorId);
+                videoFileDestPathList.push(videoFileDestPath);
+            }
         }
         // download thumbnail and keyframes image
         let metadata = null;
         if (msg.metadata) {
-            const thumbnailFilename = FileManageService.processFilename(basename(msg.metadata.thumbnailPath.filename));
-            const thumbnailPath = join(savePath, thumbnailFilename);
-            await this._fileManageService.download(msg.metadata.thumbnailPath, thumbnailPath, msg.jobExecutorId);
             const keyframeImagePathList: string[] = [];
-            for (const kfImageRemoteFile of msg.metadata.keyframeImagePathList ) {
-                const keyframeImageFilename = FileManageService.processFilename(basename(kfImageRemoteFile.filename));
-                const keyframeImagePath = join(savePath, keyframeImageFilename);
-                await this._fileManageService.download(kfImageRemoteFile, keyframeImagePath, msg.jobExecutorId);
-                keyframeImagePathList.push(keyframeImagePath);
+            let thumbnailPath: string;
+            if (isBlobUrl) {
+                thumbnailPath = msg.metadata.thumbnailPath.fileUri;
+                for (const kfImageRemoteFile of msg.metadata.keyframeImagePathList ) {
+                    keyframeImagePathList.push(kfImageRemoteFile.fileUri);
+                }
+            } else {
+                const thumbnailFilename = FileManageService.processFilename(basename(msg.metadata.thumbnailPath.filename));
+                thumbnailPath = join(savePath, thumbnailFilename);
+                await this._fileManageService.download(msg.metadata.thumbnailPath, thumbnailPath, msg.jobExecutorId);
+                for (const kfImageRemoteFile of msg.metadata.keyframeImagePathList ) {
+                    const keyframeImageFilename = FileManageService.processFilename(basename(kfImageRemoteFile.filename));
+                    const keyframeImagePath = join(savePath, keyframeImageFilename);
+                    await this._fileManageService.download(kfImageRemoteFile, keyframeImagePath, msg.jobExecutorId);
+                    keyframeImagePathList.push(keyframeImagePath);
+                }
             }
             metadata = Object.assign({}, msg.metadata, {thumbnailPath, keyframeImagePathList});
         }
@@ -114,7 +129,7 @@ export class DownloadManager {
         }
         // all work is done at download manager side.
         // TODO: deprecate this after Albireo is deprecated
-        await this.callAlbireoRpc(msg, videoFileDestPathList, metadata);
+        await this.callAlbireoRpc(msg, videoFileDestPathList, metadata, isBlobUrl);
     }
 
     private async onDownloadTask(msg: DownloadTaskMessage): Promise<void> {
@@ -129,20 +144,26 @@ export class DownloadManager {
         await this._downloadService.download(job);
     }
 
-    private async callAlbireoRpc(msg: VideoManagerMessage, videoFileDestPathList: string[],
-                                 metadata: Omit<VideoMetadata, 'thumbnailPath' | 'keyframeImagePathList'> & {thumbnailPath: string, keyframeImagePathList: string[]}): Promise<void> {
+    private async callAlbireoRpc(msg: VideoManagerMessage,
+                                 videoFileDestPathList: string[],
+                                 metadata: Omit<VideoMetadata, 'thumbnailPath' | 'keyframeImagePathList'> & {thumbnailPath: string, keyframeImagePathList: string[]},
+                                 isBlobUrl: boolean): Promise<void> {
         const rpcUrl = this._configManager.albireoRPCUrl();
+        let normalizedVideoFileDestPath: string[];
         // save relative path, relative to bangumi folder
+        if (!isBlobUrl) {
+            normalizedVideoFileDestPath = videoFileDestPathList.map((videoFileDestPath) => {
+                return videoFileDestPath.substring(videoFileDestPath.indexOf(msg.bangumiId) + msg.bangumiId.length + 1, videoFileDestPath.length)
+            });
 
-        const normalizedVideoFileDestPath = videoFileDestPathList.map((videoFileDestPath) => {
-            return videoFileDestPath.substring(videoFileDestPath.indexOf(msg.bangumiId) + msg.bangumiId.length + 1, videoFileDestPath.length)
-        });
-
-        if (metadata && metadata.thumbnailPath) {
-            metadata.thumbnailPath = metadata.thumbnailPath.substring(metadata.thumbnailPath.indexOf(msg.bangumiId), metadata.thumbnailPath.length);
-        }
-        if (metadata && metadata.keyframeImagePathList) {
-            metadata.keyframeImagePathList = metadata.keyframeImagePathList.map(p => p.substring(p.indexOf(msg.bangumiId), p.length));
+            if (metadata && metadata.thumbnailPath) {
+                metadata.thumbnailPath = metadata.thumbnailPath.substring(metadata.thumbnailPath.indexOf(msg.bangumiId), metadata.thumbnailPath.length);
+            }
+            if (metadata && metadata.keyframeImagePathList) {
+                metadata.keyframeImagePathList = metadata.keyframeImagePathList.map(p => p.substring(p.indexOf(msg.bangumiId), p.length));
+            }
+        } else {
+            normalizedVideoFileDestPath = videoFileDestPathList;
         }
 
         await axios.post(`${rpcUrl}/download_complete`, {
@@ -151,6 +172,10 @@ export class DownloadManager {
             file_path_list: normalizedVideoFileDestPath,
             metadata: metadata
         });
+    }
+
+    private static isS3Url(uri: string): boolean {
+        return S3_URL_PATTERN.test(uri);
     }
 
 }

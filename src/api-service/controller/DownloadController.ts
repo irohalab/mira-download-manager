@@ -30,14 +30,9 @@ import { DatabaseService } from '../../service/DatabaseService';
 import { JobStatus } from '../../domain/JobStatus';
 import { DownloadJob } from '../../entity/DownloadJob';
 import { inject } from 'inversify';
-import { TYPES } from '@irohalab/mira-shared';
+import { JsonResultFactory, TYPES } from '@irohalab/mira-shared';
 import { DownloadService } from '../../service/DownloadService';
 import { getStdLogger } from '../../utils/Logger';
-import {
-    BadRequestErrorMessageResult,
-    InternalServerErrorResult,
-    NotFoundResult
-} from 'inversify-express-utils/lib/results';
 
 type Operation = { action: 'pause' | 'resume' | 'delete' };
 
@@ -55,24 +50,20 @@ export class DownloadController extends BaseHttpController implements interfaces
     }
 
     @httpGet('/job')
-    public async listJobs(@queryParam('status') status: string): Promise<IHttpActionResult> {
+    public async listJobs(@queryParam('status') status: string, @queryParam('bangumiId') bangumiId: string): Promise<IHttpActionResult> {
         const jobStatus = status as JobStatus | 'all';
         if (!jobStatus) {
-            return new BadRequestErrorMessageResult('status is empty');
+            return JsonResultFactory(400, { message: 'status is empty', status: -1 });
         }
         let jobs: DownloadJob[];
         try {
-            if (jobStatus === 'all') {
-                jobs = await this._database.getJobRepository(true).listRecentJobs();
-            } else {
-                jobs = await this._database.getJobRepository(true).listJobByStatusWithDescOrder(jobStatus);
-            }
+            jobs = await this._database.getJobRepository(true).listJobs(jobStatus, bangumiId);
             return this.json({
                 data: jobs || [],
                 status: 0
             });
         } catch (ex) {
-            return new InternalServerErrorResult();
+            return JsonResultFactory(500);
         }
     }
 
@@ -85,7 +76,7 @@ export class DownloadController extends BaseHttpController implements interfaces
                 status: 0
             });
         } else {
-            return new NotFoundResult();
+            return JsonResultFactory(404);
         }
     }
 
@@ -113,7 +104,7 @@ export class DownloadController extends BaseHttpController implements interfaces
             await jobRepo.save(job);
             return this.json({data: null, message: 'OK', status: 0});
         } else {
-            return new NotFoundResult();
+            return JsonResultFactory(404);
         }
     }
 
@@ -158,10 +149,10 @@ export class DownloadController extends BaseHttpController implements interfaces
                 });
             } catch (ex) {
                 logger.error(ex);
-                return new InternalServerErrorResult();
+                return JsonResultFactory(500);
             }
         } else {
-            return new NotFoundResult();
+            return JsonResultFactory(404);
         }
     }
 }

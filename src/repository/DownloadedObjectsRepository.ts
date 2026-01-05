@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 IROHA LAB
+ * Copyright 2025 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,13 @@
  * limitations under the License.
  */
 
-import { CleanUpTask } from '../entity/CleanUpTask';
 import { BaseEntityRepository } from '@irohalab/mira-shared/repository/BaseEntityRepository';
-import { EntityManager } from '@mikro-orm/postgresql';
+import { DownloadedObject } from '../entity/DownloadedObject';
 
-export class CleanUpTaskRepository extends BaseEntityRepository<CleanUpTask> {
-    public async addTempFolderPath(tempFolderPath: string): Promise<void> {
-        const task = new CleanUpTask();
-        task.directoryPath = tempFolderPath;
-        await this.save(task);
-    }
-
-    public remove(task: CleanUpTask | CleanUpTask[]): EntityManager {
-        return this.em.remove(task);
-    }
-
-    public async flush(): Promise<void> {
-        await this.em.flush();
+export class DownloadedObjectsRepository extends BaseEntityRepository<DownloadedObject>{
+    public async removeAllExpiredObjects(): Promise<number> {
+        return await this.nativeDelete({
+            expiration: { $gt: new Date() }
+        });
     }
 }

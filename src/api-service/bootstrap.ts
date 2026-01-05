@@ -19,8 +19,7 @@ import { Container } from 'inversify';
 import { InversifyExpressServer } from 'inversify-express-utils';
 import { ConfigManager } from '../utils/ConfigManager';
 import { Server } from 'http';
-import * as bodyParser from 'body-parser';
-import * as cors from 'cors';
+import cors = require('cors');
 
 import './controller/FileController';
 import './controller/RpcController';
@@ -29,6 +28,7 @@ import { TYPES } from '@irohalab/mira-shared';
 import { DatabaseService } from '../service/DatabaseService';
 import { DownloadService } from '../service/DownloadService';
 import { getStdLogger } from '../utils/Logger';
+import { json, urlencoded } from 'express';
 
 const DEBUG = process.env.DEBUG === 'true';
 const logger = getStdLogger();
@@ -41,10 +41,10 @@ export function bootstrap(container: Container): Server {
         logger.info('connected to downloader');
     });
     expressServer.setConfig((theApp) => {
-        theApp.use(bodyParser.urlencoded({
+        theApp.use(urlencoded({
             extended: true
         }))
-        theApp.use(bodyParser.json())
+        theApp.use(json())
         theApp.use(databaseService.requestContextMiddleware());
         if (DEBUG) {
             theApp.use(cors());

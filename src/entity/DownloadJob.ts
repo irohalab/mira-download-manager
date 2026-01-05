@@ -18,20 +18,21 @@ import { DownloaderType } from '../domain/DownloaderType';
 import { JobStatus } from '../domain/JobStatus';
 import { DownloadTaskMessage } from '../domain/DownloadTaskMessage';
 import {
-    BigIntType,
+    BigIntType, Collection,
     DateTimeType,
     Entity,
     EntityRepositoryType,
     Enum, FloatType, IntegerType,
-    JsonType,
+    JsonType, OneToMany,
     PrimaryKey,
     Property
 } from '@mikro-orm/core';
 import { DownloadJobRepository } from '../repository/DownloadJobRepository';
 import { randomUUID } from 'crypto';
 import { FileMapping } from '@irohalab/mira-shared/domain/FileMapping';
+import { DownloadedObject } from './DownloadedObject';
 
-@Entity({ customRepository: () => DownloadJobRepository })
+@Entity({ repository: () => DownloadJobRepository })
 export class DownloadJob {
     @PrimaryKey()
     public id: string = randomUUID();
@@ -182,6 +183,13 @@ export class DownloadJob {
         nullable: true
     })
     public errorInfo: { message?: string, stack?: string };
+
+    @OneToMany({
+        entity: () => DownloadedObject,
+        mappedBy: 'downloadJob', orphanRemoval: true,
+        where: { expiration: { $lt: new Date(Date.now() - 3 * 3600) }} // objects need have at least 3hrs before expiration.
+    })
+    public downloadedObjects = new Collection<DownloadedObject>(this);
 
     [EntityRepositoryType]?: DownloadJobRepository;
 }

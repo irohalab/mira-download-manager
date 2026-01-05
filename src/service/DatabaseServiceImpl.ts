@@ -15,7 +15,6 @@
  */
 
 import { inject, injectable } from 'inversify';
-import { TYPES_DM } from '../TYPES_DM';
 import { ConfigManager } from '../utils/ConfigManager';
 import { DownloadJobRepository } from '../repository/DownloadJobRepository';
 import { CleanUpTaskRepository } from '../repository/CleanUpTaskRepository';
@@ -24,6 +23,8 @@ import { BasicDatabaseServiceImpl, TYPES } from '@irohalab/mira-shared';
 import { DownloadJob } from '../entity/DownloadJob';
 import { CleanUpTask } from '../entity/CleanUpTask';
 import { getStdLogger } from '../utils/Logger';
+import { DownloadedObject } from '../entity/DownloadedObject';
+import { DownloadedObjectsRepository } from '../repository/DownloadedObjectsRepository';
 
 const logger = getStdLogger();
 
@@ -32,6 +33,10 @@ export class DatabaseServiceImpl extends BasicDatabaseServiceImpl implements Dat
 
     constructor(@inject(TYPES.ConfigManager) configManager: ConfigManager) {
         super(configManager);
+    }
+
+    public getDownloadedObjectRepository(useRequestContext: boolean = false): DownloadedObjectsRepository {
+        return this._em.fork({useContext: useRequestContext}).getRepository(DownloadedObject) as DownloadedObjectsRepository;
     }
 
     public getJobRepository(useRequestContext: boolean = false): DownloadJobRepository {
