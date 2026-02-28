@@ -23,7 +23,7 @@
       "@mikro-orm/migrations": "^6.5.2",
       "@mikro-orm/postgresql": "^6.5.2",
       "@sentry/node": "^7.120.4",
-      "amqplib": "^0.8.0",
+      "amqplib": "^0.10.9",
       "axios": "1.12.2",
       "cors": "^2.8.5",
       "form-data": "^4.0.0",
