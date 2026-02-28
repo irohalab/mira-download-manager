@@ -1,4 +1,4 @@
-FROM node:17 AS base
+FROM node:20-bullseye AS base
 WORKDIR /app
 
 FROM base AS dev
