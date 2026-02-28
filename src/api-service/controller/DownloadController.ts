@@ -17,11 +17,11 @@
 import {
     BaseHttpController,
     controller,
-    httpGet,
+    httpGet, httpPost,
     httpPut, IHttpActionResult,
     interfaces,
     queryParam,
-    request,
+    request, requestBody,
     requestParam,
     response
 } from 'inversify-express-utils';
@@ -33,6 +33,7 @@ import { inject } from 'inversify';
 import { JsonResultFactory, TYPES } from '@irohalab/mira-shared';
 import { DownloadService } from '../../service/DownloadService';
 import { getStdLogger } from '../../utils/Logger';
+import { FileMapping } from '@irohalab/mira-shared/domain/FileMapping';
 
 type Operation = { action: 'pause' | 'resume' | 'delete' };
 
@@ -77,6 +78,29 @@ export class DownloadController extends BaseHttpController implements interfaces
             });
         } else {
             return JsonResultFactory(404);
+        }
+    }
+
+    @httpPost('/job/:id')
+    public async updateJob(@requestParam('id') id: string, @requestBody() payload: { fileMapping: FileMapping[] }): Promise<IHttpActionResult> {
+        // Currently only support update file mapping.
+        if (!payload || !payload.fileMapping) {
+            return JsonResultFactory(400, { message: 'payload invalid or empty'});
+        }
+        try {
+            const jobRepo = this._database.getJobRepository(true);
+            const job = await jobRepo.findOne({ id });
+            if (job) {
+                job.fileMapping = payload.fileMapping;
+                await jobRepo.save(job);
+                return JsonResultFactory(200);
+            } else {
+                return JsonResultFactory(400, { message: 'job not found'});
+            }
+
+        } catch (ex) {
+            logger.error(ex);
+            return JsonResultFactory(500);
         }
     }
 

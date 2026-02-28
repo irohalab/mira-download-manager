@@ -3,8 +3,8 @@ version: 1
 amqp:
   host: "localhost"
   port: 5672
-  user: "guest"
-  password: "guest"
+  user: "mira_rabbit"
+  password: "f8d6acfa7b8b"
 
 # amqp url has higher priority than amqp config object
 amqpUrl: ''
@@ -35,7 +35,7 @@ albireoRPC: 'http://localhost:8080'
 completed_job_retention: 30 # days
 
 # S3 or Filesystem
-storage_type: 'S3'
+storage_type: 'Filesystem'
 
 # this will be passed into S3Client() as configuration
 s3_config:
