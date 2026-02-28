@@ -21,9 +21,13 @@ import { CleanUpTaskRepository } from '../repository/CleanUpTaskRepository';
 import { Request, Response, NextFunction } from 'express';
 import { ParamsDictionary } from 'express-serve-static-core';
 import { ParsedQs } from 'qs';
+import { DownloadedObjectsRepository } from '../repository/DownloadedObjectsRepository';
 
 @injectable()
 export class FakeDatabaseService implements DatabaseService {
+    getDownloadedObjectRepository(): DownloadedObjectsRepository {
+        throw new Error('Method not implemented.');
+    }
     initSchema(): Promise<void> {
         throw new Error('Method not implemented.');
     }
