@@ -15,12 +15,18 @@
  */
 
 import { Response as ExpressResponse } from 'express';
-import { controller, httpPost, interfaces, requestBody, response } from 'inversify-express-utils';
+import {
+    BaseHttpController,
+    controller,
+    httpPost,
+    IHttpActionResult,
+    interfaces,
+    requestBody,
+    response
+} from 'inversify-express-utils';
 import { inject } from 'inversify';
-import { ConfigManager } from '../../utils/ConfigManager';
-import { DatabaseService } from '../../service/DatabaseService';
 import { inspect } from 'util';
-import { CORE_TASK_EXCHANGE, DOWNLOAD_TASK, RabbitMQService, TYPES } from '@irohalab/mira-shared';
+import { CORE_TASK_EXCHANGE, DOWNLOAD_TASK, JsonResultFactory, RabbitMQService, TYPES } from '@irohalab/mira-shared';
 import { getStdLogger } from '../../utils/Logger';
 
 const logger = getStdLogger();
@@ -29,17 +35,22 @@ const logger = getStdLogger();
  * This will be deprecated once we deprecate Albireo
  */
 @controller('/rpc')
-export class RpcController implements interfaces.Controller {
+export class RpcController extends BaseHttpController implements interfaces.Controller {
 
-    constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
-                @inject(TYPES.DatabaseService) private _database: DatabaseService,
-                @inject(TYPES.RabbitMQService) private _mqService: RabbitMQService) {
+    constructor(@inject(TYPES.RabbitMQService) private _mqService: RabbitMQService) {
+        super()
     }
 
     @httpPost('/download')
-    public async sendDownloadMessage(@requestBody() body, @response() res: ExpressResponse): Promise<void> {
+    public async sendDownloadMessage(@requestBody() body, @response() res: ExpressResponse): Promise<IHttpActionResult> {
         logger.info('download task: ' + inspect(body));
-        await this._mqService.publish(CORE_TASK_EXCHANGE, DOWNLOAD_TASK, body);
-        res.status(200);
+        try {
+            await this._mqService.publish(CORE_TASK_EXCHANGE, DOWNLOAD_TASK, body);
+        } catch (error) {
+            logger.error('download task message failed to publish: ' + error);
+            return JsonResultFactory(500);
+        }
+
+        return JsonResultFactory(200);
     }
 }

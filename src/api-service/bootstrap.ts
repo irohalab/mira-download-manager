@@ -21,9 +21,6 @@ import { ConfigManager } from '../utils/ConfigManager';
 import { Server } from 'http';
 import cors = require('cors');
 
-import './controller/FileController';
-import './controller/RpcController';
-import './controller/DownloadController';
 import { TYPES } from '@irohalab/mira-shared';
 import { DatabaseService } from '../service/DatabaseService';
 import { DownloadService } from '../service/DownloadService';
@@ -34,6 +31,10 @@ const DEBUG = process.env.DEBUG === 'true';
 const logger = getStdLogger();
 
 export function bootstrap(container: Container): Server {
+    require('./controller/FileController');
+    require('./controller/RpcController');
+    require('./controller/DownloadController');
+
     const expressServer = new InversifyExpressServer(container);
     const databaseService = container.get<DatabaseService>(TYPES.DatabaseService);
     const downloadService= container.get<DownloadService>(DownloadService);
