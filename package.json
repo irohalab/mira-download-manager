@@ -3,7 +3,7 @@
    "version": "1.5.4",
    "description": "manage download of video files",
    "devDependencies": {
-      "@types/amqplib": "^0.8.2",
+      "@types/amqplib": "^0.10.8",
       "@types/cors": "^2.8.19",
       "@types/express": "^4.17.13",
       "@types/js-yaml": "^4.0.3",
