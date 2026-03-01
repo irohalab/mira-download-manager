@@ -16,7 +16,7 @@
 
 import { inject, injectable } from 'inversify';
 import { DatabaseService } from './DatabaseService';
-import { TYPES_DM } from '../TYPES_DM';
+import { KEY_DOWNLOAD_MESSAGE, TYPES_DM } from '../TYPES_DM';
 import { DownloadAdapter } from '../download-adapter/DownloadAdapter';
 import { filter, mergeMap } from 'rxjs/operators';
 import { JobStatus } from '../domain/JobStatus';
@@ -239,7 +239,7 @@ export class DownloadService {
             });
             const promises = [];
             for (const message of messages) {
-                promises.push(this.mqService.publish(DOWNLOAD_MESSAGE_EXCHANGE, '', message));
+                promises.push(this.mqService.publish(DOWNLOAD_MESSAGE_EXCHANGE, KEY_DOWNLOAD_MESSAGE, message));
             }
             await Promise.all(promises);
             console.log('all message sent');
@@ -254,7 +254,7 @@ export class DownloadService {
             message.videoFile.fileLocalPath = join(savePath, videoFile.name);
             message.videoFile.fileUri = this.configManager.getFileUrl(videoFile.name, job.id);
             message.otherFiles.splice(message.otherFiles.findIndex(f => f.filename === message.videoFile.filename), 1);
-            await this.mqService.publish(DOWNLOAD_MESSAGE_EXCHANGE, '', message);
+            await this.mqService.publish(DOWNLOAD_MESSAGE_EXCHANGE, KEY_DOWNLOAD_MESSAGE, message);
             console.log('message sent');
         }
     }
