@@ -37,6 +37,7 @@ import axios from 'axios';
 import { promisify } from 'util';
 import { getStdLogger } from './utils/Logger';
 import { VideoMetadata } from '@irohalab/mira-shared/domain/VideoMetadata';
+import { KEY_DOWNLOAD_MESSAGE } from './TYPES_DM';
 
 const sleep = promisify(setTimeout);
 const logger = getStdLogger();
@@ -52,7 +53,7 @@ export class DownloadManager {
     }
 
     public async start(): Promise<void> {
-        await this._mqService.initPublisher(DOWNLOAD_MESSAGE_EXCHANGE, 'direct');
+        await this._mqService.initPublisher(DOWNLOAD_MESSAGE_EXCHANGE, 'direct', KEY_DOWNLOAD_MESSAGE);
         await this._mqService.initConsumer(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_QUEUE, VIDEO_MANAGER_GENERAL);
         await this._mqService.initConsumer(CORE_TASK_EXCHANGE, 'direct', DOWNLOAD_TASK_QUEUE, DOWNLOAD_TASK);
 

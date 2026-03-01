@@ -22,3 +22,5 @@ export type S3BucketConfig = {
     name: string;
     expireInDays: number;
 }
+
+export const KEY_DOWNLOAD_MESSAGE = 'key_download_message'; // TODO: move to mira_shared
