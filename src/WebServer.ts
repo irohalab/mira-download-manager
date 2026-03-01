@@ -17,7 +17,7 @@
 import 'reflect-metadata';
 import { Container } from 'inversify';
 import { ConfigManager } from './utils/ConfigManager';
-import { TYPES_DM } from './TYPES_DM';
+import { KEY_DOWNLOAD_MESSAGE, TYPES_DM } from './TYPES_DM';
 import { ConfigManagerImpl } from './utils/ConfigManagerImpl';
 import { DatabaseService } from './service/DatabaseService';
 import { DatabaseServiceImpl } from './service/DatabaseServiceImpl';
@@ -81,7 +81,7 @@ databaseService.start()
         return rabbitMQService.initPublisher(CORE_TASK_EXCHANGE, 'direct', DOWNLOAD_TASK);
     })
     .then(() => {
-        return rabbitMQService.initPublisher(DOWNLOAD_MESSAGE_EXCHANGE, 'direct', '');
+        return rabbitMQService.initPublisher(DOWNLOAD_MESSAGE_EXCHANGE, 'direct', KEY_DOWNLOAD_MESSAGE);
     })
     .then(() => {
         return downloadService.start(false);
