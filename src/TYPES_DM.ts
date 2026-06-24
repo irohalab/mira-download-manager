@@ -24,3 +24,12 @@ export type S3BucketConfig = {
 }
 
 export const KEY_DOWNLOAD_MESSAGE = 'key_download_message'; // TODO: move to mira_shared
+
+/**
+ * AMQP topology for the download-complete RPC (replaces the legacy Albireo HTTP RPC).
+ * These string values must stay in sync with the streaming platform
+ * (mira-streaming-platform/src/TYPES.ts).
+ */
+export const DOWNLOAD_COMPLETE_EXCHANGE = 'download_complete';
+export const DOWNLOAD_COMPLETE_QUEUE = 'download_complete_queue';
+export const DOWNLOAD_COMPLETE_ROUTING_KEY = 'download_complete';

@@ -33,11 +33,16 @@ import { DownloadJob } from './entity/DownloadJob';
 import { basename, join } from 'path';
 import { ConfigManager } from './utils/ConfigManager';
 import { FileManageService } from './service/FileManageService';
-import axios from 'axios';
 import { promisify } from 'util';
 import { getStdLogger } from './utils/Logger';
 import { VideoMetadata } from '@irohalab/mira-shared/domain/VideoMetadata';
-import { KEY_DOWNLOAD_MESSAGE } from './TYPES_DM';
+import {
+    DOWNLOAD_COMPLETE_EXCHANGE,
+    DOWNLOAD_COMPLETE_ROUTING_KEY,
+    KEY_DOWNLOAD_MESSAGE
+} from './TYPES_DM';
+import { DownloadCompleteMessage } from './domain/DownloadCompleteMessage';
+import { randomUUID } from 'crypto';
 
 const sleep = promisify(setTimeout);
 const logger = getStdLogger();
@@ -54,6 +59,7 @@ export class DownloadManager {
 
     public async start(): Promise<void> {
         await this._mqService.initPublisher(DOWNLOAD_MESSAGE_EXCHANGE, 'direct', KEY_DOWNLOAD_MESSAGE);
+        await this._mqService.initPublisher(DOWNLOAD_COMPLETE_EXCHANGE, 'direct', DOWNLOAD_COMPLETE_ROUTING_KEY);
         await this._mqService.initConsumer(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_QUEUE, VIDEO_MANAGER_GENERAL);
         await this._mqService.initConsumer(CORE_TASK_EXCHANGE, 'direct', DOWNLOAD_TASK_QUEUE, DOWNLOAD_TASK);
 
@@ -129,8 +135,7 @@ export class DownloadManager {
             logger.info({message: 'not processed', video_id: msg.videoId});
         }
         // all work is done at download manager side.
-        // TODO: deprecate this after Albireo is deprecated
-        await this.callAlbireoRpc(msg, videoFileDestPathList, metadata, isBlobUrl);
+        await this.publishDownloadComplete(msg, videoFileDestPathList, metadata, isBlobUrl);
     }
 
     private async onDownloadTask(msg: DownloadTaskMessage): Promise<void> {
@@ -145,11 +150,10 @@ export class DownloadManager {
         await this._downloadService.download(job);
     }
 
-    private async callAlbireoRpc(msg: VideoManagerMessage,
-                                 videoFileDestPathList: string[],
-                                 metadata: Omit<VideoMetadata, 'thumbnailPath' | 'keyframeImagePathList'> & {thumbnailPath: string, keyframeImagePathList: string[]},
-                                 isBlobUrl: boolean): Promise<void> {
-        const rpcUrl = this._configManager.albireoRPCUrl();
+    private async publishDownloadComplete(msg: VideoManagerMessage,
+                                          videoFileDestPathList: string[],
+                                          metadata: Omit<VideoMetadata, 'thumbnailPath' | 'keyframeImagePathList'> & {thumbnailPath: string, keyframeImagePathList: string[]},
+                                          isBlobUrl: boolean): Promise<void> {
         let normalizedVideoFileDestPath: string[];
         // save relative path, relative to bangumi folder
         if (!isBlobUrl) {
@@ -167,12 +171,14 @@ export class DownloadManager {
             normalizedVideoFileDestPath = videoFileDestPathList;
         }
 
-        await axios.post(`${rpcUrl}/download_complete`, {
-            video_id: msg.videoId,
-            bangumi_id: msg.bangumiId,
-            file_path_list: normalizedVideoFileDestPath,
-            metadata: metadata
-        });
+        const message = new DownloadCompleteMessage();
+        message.id = randomUUID();
+        message.videoId = msg.videoId;
+        message.bangumiId = msg.bangumiId;
+        message.filePathList = normalizedVideoFileDestPath;
+        message.metadata = metadata;
+
+        await this._mqService.publish(DOWNLOAD_COMPLETE_EXCHANGE, DOWNLOAD_COMPLETE_ROUTING_KEY, message);
     }
 
     private static isS3Url(uri: string): boolean {
