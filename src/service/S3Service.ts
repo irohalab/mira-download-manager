@@ -90,7 +90,7 @@ export class S3Service {
                 const rule = response.Rules.find(rule => rule.ID === S3_RULE_ID);
                 if (!rule || !rule.Expiration || rule.Expiration.Days !== bucketConfig.expireInDays) {
                     logger.info('Lifecycle configuration mismatch');
-                    if (rule.Expiration) {
+                    if (rule && rule.Expiration) {
                         logger.info(`Current bucket expire days is ${rule.Expiration.Days} days, but the app config is ${bucketConfig.expireInDays} days`);
                     }
                     logger.info(`Replace with new configuration, expireInDays is ${bucketConfig.expireInDays} days`);
