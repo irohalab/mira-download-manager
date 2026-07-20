@@ -15,10 +15,11 @@
  */
 
 import { DownloadJob } from './DownloadJob';
-import { Entity, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
+import { Entity, EntityRepositoryType, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
 import { randomUUID } from 'crypto';
+import { DownloadedObjectsRepository } from '../repository/DownloadedObjectsRepository';
 
-@Entity()
+@Entity({repository: () => DownloadedObjectsRepository})
 export class DownloadedObject {
     @PrimaryKey()
     public id: string = randomUUID();
@@ -37,4 +38,6 @@ export class DownloadedObject {
 
     @ManyToOne(() => DownloadJob)
     public downloadJob: DownloadJob;
+
+    [EntityRepositoryType]!: DownloadedObjectsRepository;
 }

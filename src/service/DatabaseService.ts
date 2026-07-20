@@ -21,7 +21,7 @@ import { DownloadedObjectsRepository } from '../repository/DownloadedObjectsRepo
 
 export interface DatabaseService extends BaseDatabaseService {
     getJobRepository(useRequestContext?: boolean): DownloadJobRepository;
-    getCleanUpTaskRepository(): CleanUpTaskRepository;
-    getDownloadedObjectRepository(): DownloadedObjectsRepository;
+    getCleanUpTaskRepository(useContext?: boolean): CleanUpTaskRepository;
+    getDownloadedObjectRepository(useContext?: boolean): DownloadedObjectsRepository;
     initSchema(): Promise<void>;
 }
