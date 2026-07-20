@@ -70,7 +70,7 @@ export class DownloadController extends BaseHttpController implements interfaces
 
     @httpGet('/job/:id')
     public async getJob(@requestParam('id') id: string): Promise<IHttpActionResult> {
-        const job = await this._database.getJobRepository(true).findOne({ id });
+        const job = await this._database.getJobRepository(true).findOne({ id }, {populate: ['downloadedObjects']});
         if (job) {
             return this.json({
                 data: job,
@@ -136,7 +136,6 @@ export class DownloadController extends BaseHttpController implements interfaces
     public async resendFinishMessage(@requestParam('id') jobId: string): Promise<IHttpActionResult> {
         const job = await this._database.getJobRepository(true).findOne({ id: jobId});
         if (job) {
-            console.log(job);
             try {
                 await this._downloadService.downloadComplete(job);
             } catch (ex) {
