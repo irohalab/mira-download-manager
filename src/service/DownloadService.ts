@@ -197,7 +197,7 @@ export class DownloadService {
 
 
         if (this.configManager.storageType() === 'S3') {
-            const dlObjRepo = this.databaseService.getDownloadedObjectRepository();
+            const dlObjRepo = this.databaseService.getDownloadedObjectRepository(true);
             const expireInDays = this.configManager.s3Bucket().expireInDays;
             const downloadedObjects = await job.downloadedObjects.load();
             const newlyUploadedObjects: DownloadedObject[] = [];
@@ -215,6 +215,7 @@ export class DownloadService {
                 obj.s3Uri = remoteFile.fileUri;
                 obj.expiration = new Date(Date.now() + expireInDays * 24 * 3600);
                 obj.name = remoteFile.filename;
+                obj.localPath = remoteFile.fileLocalPath;
                 obj.downloadJob = job;
                 newlyUploadedObjects.push(obj);
                 logger.info(`uploaded ${remoteFile.fileUri}`);
