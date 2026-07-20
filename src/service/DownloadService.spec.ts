@@ -88,7 +88,7 @@ test('downloadComplete stores the local path for S3 objects', async (t) => {
 	const job = new DownloadJob();
 	job.torrentId = 'torrent-id';
 	job.bangumiId = 'bangumi-id';
-	job.fileMapping = [{filePath: torrentFile.name, videoId: 'video-id'}];
+	job.fileMapping = [{episodeNo: '1', filePath: torrentFile.name, videoId: 'video-id'}];
 
 	await service.downloadComplete(job);
 
