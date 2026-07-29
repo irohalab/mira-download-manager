@@ -27,7 +27,7 @@ export class CleanUpTask {
     @Property({
         columnType: 'text'
     })
-    public directoryPath: string;
+    public directoryPath!: string;
 
     [EntityRepositoryType]?: CleanUpTaskRepository;
 }

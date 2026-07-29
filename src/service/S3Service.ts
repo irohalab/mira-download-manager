@@ -27,7 +27,6 @@ import {
     S3Client, S3ServiceException, UploadPartCommand
 } from '@aws-sdk/client-s3';
 import { stat } from 'fs/promises';
-import { basename } from 'path';
 import { createReadStream } from 'fs';
 import { getStdLogger } from '../utils/Logger';
 
@@ -115,7 +114,7 @@ export class S3Service {
             return null;
         }
         const bucketName = this.configManager.s3Bucket().name;
-        const s3Key = basename(localFilePath);
+        const s3Key = localFilePath;
 
         try {
             const stats = await stat(localFilePath);

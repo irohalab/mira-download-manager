@@ -22,9 +22,11 @@ import {
     DOWNLOAD_TASK_QUEUE,
     RabbitMQService,
     TYPES,
+    VIDEO_FILE_COMPLETE_EXCHANGE,
+    VIDEO_FILE_COMPLETE_ROUTING_KEY,
     VIDEO_MANAGER_EXCHANGE,
     VIDEO_MANAGER_GENERAL,
-    VIDEO_MANAGER_QUEUE, VideoManagerMessage
+    VIDEO_MANAGER_QUEUE, VideoFileCompleteMessage, VideoManagerMessage
 } from '@irohalab/mira-shared';
 import { DownloadTaskMessage } from './domain/DownloadTaskMessage';
 import { DatabaseService } from './service/DatabaseService';
@@ -36,13 +38,8 @@ import { FileManageService } from './service/FileManageService';
 import { promisify } from 'util';
 import { getStdLogger } from './utils/Logger';
 import { VideoMetadata } from '@irohalab/mira-shared/domain/VideoMetadata';
-import {
-    DOWNLOAD_COMPLETE_EXCHANGE,
-    DOWNLOAD_COMPLETE_ROUTING_KEY,
-    KEY_DOWNLOAD_MESSAGE
-} from './TYPES_DM';
-import { DownloadCompleteMessage } from './domain/DownloadCompleteMessage';
 import { randomUUID } from 'crypto';
+import { KEY_DOWNLOAD_MESSAGE } from './TYPES_DM';
 
 const sleep = promisify(setTimeout);
 const logger = getStdLogger();
@@ -59,7 +56,7 @@ export class DownloadManager {
 
     public async start(): Promise<void> {
         await this._mqService.initPublisher(DOWNLOAD_MESSAGE_EXCHANGE, 'direct', KEY_DOWNLOAD_MESSAGE);
-        await this._mqService.initPublisher(DOWNLOAD_COMPLETE_EXCHANGE, 'direct', DOWNLOAD_COMPLETE_ROUTING_KEY);
+        await this._mqService.initPublisher(VIDEO_FILE_COMPLETE_EXCHANGE, 'direct', VIDEO_FILE_COMPLETE_ROUTING_KEY);
         await this._mqService.initConsumer(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_QUEUE, VIDEO_MANAGER_GENERAL);
         await this._mqService.initConsumer(CORE_TASK_EXCHANGE, 'direct', DOWNLOAD_TASK_QUEUE, DOWNLOAD_TASK);
 
@@ -93,39 +90,26 @@ export class DownloadManager {
     private async onVideoManagerMessage(msg: VideoManagerMessage): Promise<void> {
         const savePath = join(this._configManager.defaultDownloadLocation(), msg.bangumiId);
         let videoFileDestPathList: string[] = [];
-        let isBlobUrl: boolean = false;
         // download from video manager
         for(const processedFile of msg.processedFiles) {
-            if (DownloadManager.isS3Url(processedFile.fileUri)) {
-                isBlobUrl = true;
-                videoFileDestPathList.push(processedFile.fileUri);
-            } else {
-                const filename = FileManageService.processFilename(basename(processedFile.filename));
-                const videoFileDestPath = join(savePath, filename);
-                await this._fileManageService.download(processedFile, videoFileDestPath, msg.jobExecutorId);
-                videoFileDestPathList.push(videoFileDestPath);
-            }
+            const filename = FileManageService.processFilename(basename(processedFile.filename));
+            const videoFileDestPath = join(savePath, filename);
+            await this._fileManageService.download(processedFile, videoFileDestPath, msg.jobExecutorId);
+            videoFileDestPathList.push(videoFileDestPath);
         }
         // download thumbnail and keyframes image
         let metadata = null;
         if (msg.metadata) {
             const keyframeImagePathList: string[] = [];
             let thumbnailPath: string;
-            if (isBlobUrl) {
-                thumbnailPath = msg.metadata.thumbnailPath.fileUri;
-                for (const kfImageRemoteFile of msg.metadata.keyframeImagePathList ) {
-                    keyframeImagePathList.push(kfImageRemoteFile.fileUri);
-                }
-            } else {
-                const thumbnailFilename = FileManageService.processFilename(basename(msg.metadata.thumbnailPath.filename));
-                thumbnailPath = join(savePath, thumbnailFilename);
-                await this._fileManageService.download(msg.metadata.thumbnailPath, thumbnailPath, msg.jobExecutorId);
-                for (const kfImageRemoteFile of msg.metadata.keyframeImagePathList ) {
-                    const keyframeImageFilename = FileManageService.processFilename(basename(kfImageRemoteFile.filename));
-                    const keyframeImagePath = join(savePath, keyframeImageFilename);
-                    await this._fileManageService.download(kfImageRemoteFile, keyframeImagePath, msg.jobExecutorId);
-                    keyframeImagePathList.push(keyframeImagePath);
-                }
+            const thumbnailFilename = FileManageService.processFilename(basename(msg.metadata.thumbnailPath.filename));
+            thumbnailPath = join(savePath, thumbnailFilename);
+            await this._fileManageService.download(msg.metadata.thumbnailPath, thumbnailPath, msg.jobExecutorId);
+            for (const kfImageRemoteFile of msg.metadata.keyframeImagePathList ) {
+                const keyframeImageFilename = FileManageService.processFilename(basename(kfImageRemoteFile.filename));
+                const keyframeImagePath = join(savePath, keyframeImageFilename);
+                await this._fileManageService.download(kfImageRemoteFile, keyframeImagePath, msg.jobExecutorId);
+                keyframeImagePathList.push(keyframeImagePath);
             }
             metadata = Object.assign({}, msg.metadata, {thumbnailPath, keyframeImagePathList});
         }
@@ -135,7 +119,7 @@ export class DownloadManager {
             logger.info({message: 'not processed', video_id: msg.videoId});
         }
         // all work is done at download manager side.
-        await this.publishDownloadComplete(msg, videoFileDestPathList, metadata, isBlobUrl);
+        await this.publishDownloadComplete(msg, videoFileDestPathList, metadata);
     }
 
     private async onDownloadTask(msg: DownloadTaskMessage): Promise<void> {
@@ -152,37 +136,26 @@ export class DownloadManager {
 
     private async publishDownloadComplete(msg: VideoManagerMessage,
                                           videoFileDestPathList: string[],
-                                          metadata: Omit<VideoMetadata, 'thumbnailPath' | 'keyframeImagePathList'> & {thumbnailPath: string, keyframeImagePathList: string[]},
-                                          isBlobUrl: boolean): Promise<void> {
+                                          metadata: Omit<VideoMetadata, 'thumbnailPath' | 'keyframeImagePathList'> & {thumbnailPath: string, keyframeImagePathList: string[]}): Promise<void> {
         let normalizedVideoFileDestPath: string[];
         // save relative path, relative to bangumi folder
-        if (!isBlobUrl) {
-            normalizedVideoFileDestPath = videoFileDestPathList.map((videoFileDestPath) => {
-                return videoFileDestPath.substring(videoFileDestPath.indexOf(msg.bangumiId) + msg.bangumiId.length + 1, videoFileDestPath.length)
-            });
+        normalizedVideoFileDestPath = videoFileDestPathList.map((videoFileDestPath) => {
+            return videoFileDestPath.substring(videoFileDestPath.indexOf(msg.bangumiId) + msg.bangumiId.length + 1, videoFileDestPath.length)
+        });
 
-            if (metadata && metadata.thumbnailPath) {
-                metadata.thumbnailPath = metadata.thumbnailPath.substring(metadata.thumbnailPath.indexOf(msg.bangumiId), metadata.thumbnailPath.length);
-            }
-            if (metadata && metadata.keyframeImagePathList) {
-                metadata.keyframeImagePathList = metadata.keyframeImagePathList.map(p => p.substring(p.indexOf(msg.bangumiId), p.length));
-            }
-        } else {
-            normalizedVideoFileDestPath = videoFileDestPathList;
+        if (metadata && metadata.thumbnailPath) {
+            metadata.thumbnailPath = metadata.thumbnailPath.substring(metadata.thumbnailPath.indexOf(msg.bangumiId), metadata.thumbnailPath.length);
         }
-
-        const message = new DownloadCompleteMessage();
+        if (metadata && metadata.keyframeImagePathList) {
+            metadata.keyframeImagePathList = metadata.keyframeImagePathList.map(p => p.substring(p.indexOf(msg.bangumiId), p.length));
+        }
+        const message = {} as VideoFileCompleteMessage;
         message.id = randomUUID();
         message.videoId = msg.videoId;
         message.bangumiId = msg.bangumiId;
         message.filePathList = normalizedVideoFileDestPath;
         message.metadata = metadata;
 
-        await this._mqService.publish(DOWNLOAD_COMPLETE_EXCHANGE, DOWNLOAD_COMPLETE_ROUTING_KEY, message);
+        await this._mqService.publish(VIDEO_FILE_COMPLETE_EXCHANGE, VIDEO_FILE_COMPLETE_ROUTING_KEY, message);
     }
-
-    private static isS3Url(uri: string): boolean {
-        return S3_URL_PATTERN.test(uri);
-    }
-
 }

@@ -40,7 +40,7 @@ export class DownloadJob {
     @Property({
         nullable: true
     })
-    public torrentId: string;
+    public torrentId!: string;
 
     @Enum(() => DownloaderType)
     public downloader: DownloaderType = DownloaderType.qBittorrent;
@@ -51,55 +51,55 @@ export class DownloadJob {
     @Property({
         columnType: 'text'
     })
-    public torrentUrl: string;
+    public torrentUrl!: string;
 
     @Property()
-    public bangumiId: string;
+    public bangumiId!: string;
 
     @Property()
-    public downloadTaskMessageId: string;
+    public downloadTaskMessageId!: string;
 
     @Property({
         columnType: 'jsonb',
         type: JsonType
     })
-    public downloadTaskMessage: DownloadTaskMessage;
+    public downloadTaskMessage!: DownloadTaskMessage;
 
     @Property({
         columnType: 'jsonb',
         type: JsonType,
         nullable: true
     })
-    public fileMapping: FileMapping[];
+    public fileMapping!: FileMapping[];
 
     @Property({
         nullable: true
     })
-    public videoId: string;
+    public videoId!: string;
 
     @Property({
         columnType: 'text',
         nullable: true
     })
-    public torrentName: string;
+    public torrentName!: string;
 
     @Property({
         type: FloatType,
         default: 0
     })
-    public progress: number;
+    public progress!: number;
 
     @Property({
         type: FloatType,
         default: 0
     })
-    public downloadSpeed: number;
+    public downloadSpeed!: number;
 
     @Property({
         type: FloatType,
         default: 0
     })
-    public eta: number;
+    public eta!: number;
 
     @Property({
         type: FloatType,
@@ -112,62 +112,62 @@ export class DownloadJob {
         type: IntegerType,
         default: 0
     })
-    public priority: number;
+    public priority!: number;
 
     @Property({
         type: BigIntType,
         default: 0
     })
-    public size: number;
+    public size!: number;
 
     @Property({
         type: BigIntType,
         default: 0
     })
-    public downloaded: number;
+    public downloaded!: number;
 
     @Property({
         type: BigIntType,
         default: 0
     })
-    public amountLeft: number;
+    public amountLeft!: number;
 
     @Property({
         type: IntegerType,
         default: 0
     })
-    public activeTime: number;
+    public activeTime!: number;
 
     @Property({
         type: IntegerType,
         default: 0
     })
-    public seeds: number;
+    public seeds!: number;
 
     @Property({
         type: IntegerType,
         default: 0
     })
-    public leechers: number;
+    public leechers!: number;
 
     @Property({
         type: IntegerType,
         default: 0
     })
-    public connectedSeeds: number;
+    public connectedSeeds!: number;
 
     @Property({
         type: IntegerType,
         default: 0
     })
-    public connectedLeechers: number;
+    public connectedLeechers!: number;
 
     @Property({
         columnType: 'timestamp',
         type: DateTimeType,
         nullable: true
     })
-    public createTime: Date;
+    public createTime!: Date;
 
     // there may be delay between job endTime and the torrent endTime
     @Property({
@@ -175,19 +175,18 @@ export class DownloadJob {
         type: DateTimeType,
         nullable: true
     })
-    public endTime: Date;
+    public endTime!: Date;
 
     @Property({
         columnType: 'jsonb',
         type: JsonType,
         nullable: true
     })
-    public errorInfo: { message?: string, stack?: string };
+    public errorInfo!: { message?: string, stack?: string };
 
     @OneToMany({
         entity: () => DownloadedObject,
-        mappedBy: 'downloadJob', orphanRemoval: true,
-        where: { expiration: { $lt: new Date(Date.now() - 3 * 3600) }} // objects need have at least 3hrs before expiration.
+        mappedBy: 'downloadJob', orphanRemoval: true
     })
     public downloadedObjects = new Collection<DownloadedObject>(this);
 

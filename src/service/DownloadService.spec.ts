@@ -24,7 +24,7 @@ import { DatabaseService } from './DatabaseService';
 import { DownloadAdapter } from '../download-adapter/DownloadAdapter';
 import { S3Service } from './S3Service';
 import { DownloadJob } from '../entity/DownloadJob';
-import { DownloadedObject } from '../entity/DownloadedObject';
+import { DownloadedObject, reusableDownloadedObjectFilter } from '../entity/DownloadedObject';
 
 test('start', (t) => {
 
@@ -36,6 +36,14 @@ test('download', (t) => {
 
 test('copyVideoFile', (t) => {
 
+});
+
+test('reusable downloaded objects have at least three hours remaining', (t) => {
+	const now = Date.UTC(2026, 6, 26);
+
+	t.deepEqual(reusableDownloadedObjectFilter(now), {
+		expiration: { $gt: new Date(now + 3 * 60 * 60 * 1000) },
+	});
 });
 
 test('downloadComplete stores the local path for S3 objects', async (t) => {
@@ -86,13 +94,18 @@ test('downloadComplete stores the local path for S3 objects', async (t) => {
 		mqService,
 	);
 	const job = new DownloadJob();
+	job.downloadedObjects = {
+		load: async () => [],
+	} as unknown as DownloadJob['downloadedObjects'];
 	job.torrentId = 'torrent-id';
 	job.bangumiId = 'bangumi-id';
 	job.fileMapping = [{episodeNo: '1', filePath: torrentFile.name, videoId: 'video-id'}];
 
+	const beforeDownloadComplete = Date.now();
 	await service.downloadComplete(job);
 
 	t.is(savedObjects.length, 1);
 	t.is(savedObjects[0].localPath, expectedLocalPath);
 	t.is(savedObjects[0].s3Uri, expectedS3Uri);
+	t.true(savedObjects[0].expiration.getTime() >= beforeDownloadComplete + 3 * 24 * 60 * 60 * 1000);
 });
