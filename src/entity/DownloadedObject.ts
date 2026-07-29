@@ -15,26 +15,35 @@
  */
 
 import { DownloadJob } from './DownloadJob';
-import { Entity, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
+import { Entity, EntityRepositoryType, FilterQuery, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
 import { randomUUID } from 'crypto';
+import { DownloadedObjectsRepository } from '../repository/DownloadedObjectsRepository';
 
-@Entity()
+const MIN_REUSABLE_LIFETIME_MS = 3 * 60 * 60 * 1000;
+
+export function reusableDownloadedObjectFilter(now: number = Date.now()): FilterQuery<DownloadedObject> {
+    return { expiration: { $gt: new Date(now + MIN_REUSABLE_LIFETIME_MS) } };
+}
+
+@Entity({repository: () => DownloadedObjectsRepository})
 export class DownloadedObject {
     @PrimaryKey()
     public id: string = randomUUID();
 
     @Property()
-    public name: string;
+    public name!: string;
 
     @Property()
-    public localPath: string;
+    public localPath!: string;
 
     @Property()
-    public s3Uri: string;
+    public s3Uri!: string;
 
     @Property()
     public expiration?: Date;
 
     @ManyToOne(() => DownloadJob)
-    public downloadJob: DownloadJob;
+    public downloadJob!: DownloadJob;
+
+    [EntityRepositoryType]!: DownloadedObjectsRepository;
 }

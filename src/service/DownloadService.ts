@@ -38,7 +38,7 @@ import {
 } from '@irohalab/mira-shared';
 import { getStdLogger } from '../utils/Logger';
 import { S3Service } from './S3Service';
-import { DownloadedObject } from '../entity/DownloadedObject';
+import { DownloadedObject, reusableDownloadedObjectFilter } from '../entity/DownloadedObject';
 
 const logger = getStdLogger();
 
@@ -62,15 +62,14 @@ export class DownloadService {
                     mergeMap((jobId: string) => {
                         return this.databaseService.getJobRepository().findOne({id: jobId});
                     }),
-                    filter((job: DownloadJob) => {
-                        return job && job.status === JobStatus.Complete;
-                    }),
-                    mergeMap((job: DownloadJob) => {
+                    filter((job): job is DownloadJob => job?.status === JobStatus.Complete),
+                    mergeMap(async (job: DownloadJob): Promise<DownloadJob> => {
                         job.endTime = new Date();
-                        return this.databaseService.getJobRepository().save(job);
+                        await this.databaseService.getJobRepository().save(job);
+                        return job;
                     })
                 )
-                .subscribe((job: DownloadJob | undefined) => {
+                .subscribe((job: DownloadJob) => {
                     this.downloadComplete(job).then(() => {
                         logger.info('download complete');
                     }).catch((error) => {
@@ -197,9 +196,9 @@ export class DownloadService {
 
 
         if (this.configManager.storageType() === 'S3') {
-            const dlObjRepo = this.databaseService.getDownloadedObjectRepository();
+            const dlObjRepo = this.databaseService.getDownloadedObjectRepository(true);
             const expireInDays = this.configManager.s3Bucket().expireInDays;
-            const downloadedObjects = await job.downloadedObjects.load();
+            const downloadedObjects = await job.downloadedObjects.load({ where: reusableDownloadedObjectFilter() });
             const newlyUploadedObjects: DownloadedObject[] = [];
             for (const remoteFile of remoteFiles) {
                 if (downloadedObjects.length > 0) {
@@ -213,8 +212,9 @@ export class DownloadService {
                 remoteFile.fileUri = await this.s3Service.upload(remoteFile.fileLocalPath);
                 const obj = new DownloadedObject();
                 obj.s3Uri = remoteFile.fileUri;
-                obj.expiration = new Date(Date.now() + expireInDays * 24 * 3600);
+                obj.expiration = new Date(Date.now() + expireInDays * 24 * 60 * 60 * 1000);
                 obj.name = remoteFile.filename;
+                obj.localPath = remoteFile.fileLocalPath;
                 obj.downloadJob = job;
                 newlyUploadedObjects.push(obj);
                 logger.info(`uploaded ${remoteFile.fileUri}`);

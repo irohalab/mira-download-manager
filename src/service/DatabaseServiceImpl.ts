@@ -43,8 +43,8 @@ export class DatabaseServiceImpl extends BasicDatabaseServiceImpl implements Dat
         return this._em.fork({useContext: useRequestContext}).getRepository(DownloadJob) as DownloadJobRepository;
     }
 
-    public getCleanUpTaskRepository(): CleanUpTaskRepository {
-        return this._em.fork().getRepository(CleanUpTask) as CleanUpTaskRepository;
+    public getCleanUpTaskRepository(useRequestContext: boolean = false): CleanUpTaskRepository {
+        return this._em.fork({useContext: useRequestContext}).getRepository(CleanUpTask) as CleanUpTaskRepository;
     }
 
     public async initSchema(): Promise<void> {

@@ -27,7 +27,6 @@ import {
     S3Client, S3ServiceException, UploadPartCommand
 } from '@aws-sdk/client-s3';
 import { stat } from 'fs/promises';
-import { basename } from 'path';
 import { createReadStream } from 'fs';
 import { getStdLogger } from '../utils/Logger';
 
@@ -90,7 +89,7 @@ export class S3Service {
                 const rule = response.Rules.find(rule => rule.ID === S3_RULE_ID);
                 if (!rule || !rule.Expiration || rule.Expiration.Days !== bucketConfig.expireInDays) {
                     logger.info('Lifecycle configuration mismatch');
-                    if (rule.Expiration) {
+                    if (rule && rule.Expiration) {
                         logger.info(`Current bucket expire days is ${rule.Expiration.Days} days, but the app config is ${bucketConfig.expireInDays} days`);
                     }
                     logger.info(`Replace with new configuration, expireInDays is ${bucketConfig.expireInDays} days`);
@@ -115,7 +114,7 @@ export class S3Service {
             return null;
         }
         const bucketName = this.configManager.s3Bucket().name;
-        const s3Key = basename(localFilePath);
+        const s3Key = localFilePath;
 
         try {
             const stats = await stat(localFilePath);
