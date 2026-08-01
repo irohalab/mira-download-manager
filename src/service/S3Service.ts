@@ -18,20 +18,20 @@ import { inject, injectable } from 'inversify';
 import { TYPES } from '@irohalab/mira-shared';
 import { ConfigManager } from '../utils/ConfigManager';
 import {
-    AbortMultipartUploadCommand,
-    CompletedPart, CompleteMultipartUploadCommand,
     CreateBucketCommand,
-    CreateMultipartUploadCommand, GetBucketLifecycleConfigurationCommand,
+    GetBucketLifecycleConfigurationCommand,
     ListBucketsCommand, PutBucketLifecycleConfigurationCommand, PutBucketLifecycleConfigurationCommandInput,
-    PutObjectCommand,
-    S3Client, S3ServiceException, UploadPartCommand
+    S3Client, S3ServiceException
 } from '@aws-sdk/client-s3';
 import { stat } from 'fs/promises';
 import { createReadStream } from 'fs';
 import { getStdLogger } from '../utils/Logger';
+import { Upload } from '@aws-sdk/lib-storage';
 
-const FIVE_GIGABYTES = 5 * 1024 * 1024 * 1024;
-const MULTIPART_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks (AWS recommends parts between 5MB and 5GB)
+export interface S3UploadProgress {
+    loaded: number;
+    total: number;
+}
 
 const logger = getStdLogger();
 
@@ -109,7 +109,7 @@ export class S3Service {
         }
     }
 
-    public async upload(localFilePath: string): Promise<string> {
+    public async upload(localFilePath: string, onProgress?: (progress: S3UploadProgress) => void): Promise<string> {
         if (this.configManager.storageType() !== 'S3') {
             return null;
         }
@@ -119,92 +119,31 @@ export class S3Service {
         try {
             const stats = await stat(localFilePath);
             const fileSizeInBytes = stats.size;
-
-            if (fileSizeInBytes <= FIVE_GIGABYTES) {
-                // For files 5GB or smaller, use PutObjectCommand
-                logger.info(`Starting standard upload for ${localFilePath} to s3://${bucketName}/${s3Key}`);
-                const fileStream = createReadStream(localFilePath);
-                const putObjectCommand = new PutObjectCommand({
+            logger.info(`Starting upload for ${localFilePath} to s3://${bucketName}/${s3Key}`);
+            const upload = new Upload({
+                client: this.s3Client,
+                params: {
                     Bucket: bucketName,
                     Key: s3Key,
-                    Body: fileStream,
-                    ContentLength: fileSizeInBytes, // Important for progress tracking and some S3 features
+                    Body: createReadStream(localFilePath),
+                    ContentLength: fileSizeInBytes,
+                },
+                leavePartsOnError: false
+            });
+            upload.on('httpUploadProgress', (progress) => {
+                onProgress?.({
+                    loaded: Math.min(progress.loaded ?? 0, fileSizeInBytes),
+                    total: fileSizeInBytes
                 });
+            });
 
-                await this.s3Client.send(putObjectCommand);
-                logger.info(`Successfully uploaded ${localFilePath} to s3://${bucketName}/${s3Key}`);
-                return `s3://${bucketName}/${s3Key}`;
-            } else {
-                // For files larger than 5GB, use multipart upload
-                logger.info(`Starting multipart upload for ${localFilePath} to s3://${bucketName}/${s3Key}`);
-
-                const createMultipartUploadCommand = new CreateMultipartUploadCommand({
-                    Bucket: bucketName,
-                    Key: s3Key,
-                });
-                const { UploadId } = await this.s3Client.send(createMultipartUploadCommand);
-
-                if (!UploadId) {
-                    throw new Error("Failed to create multipart upload.");
-                }
-
-                logger.info(`Multipart upload initiated. Upload ID: ${UploadId}`);
-
-                const completedParts: CompletedPart[] = [];
-                const fileStream = createReadStream(localFilePath, { highWaterMark: MULTIPART_CHUNK_SIZE });
-                let partNumber = 1;
-                let accumulatedBytes = 0;
-
-                try {
-                    for await (const chunk of fileStream) {
-                        const uploadPartCommand = new UploadPartCommand({
-                            Bucket: bucketName,
-                            Key: s3Key,
-                            UploadId,
-                            PartNumber: partNumber,
-                            Body: chunk,
-                            ContentLength: chunk.length,
-                        });
-
-                        const { ETag } = await this.s3Client.send(uploadPartCommand);
-                        if (!ETag) {
-                            throw new Error(`Failed to upload part ${partNumber}. ETag is missing.`);
-                        }
-
-                        completedParts.push({ PartNumber: partNumber, ETag });
-                        accumulatedBytes += chunk.length;
-                        logger.info(`Uploaded part ${partNumber} (${(accumulatedBytes / fileSizeInBytes * 100).toFixed(2)}%)`);
-                        partNumber++;
-                    }
-
-                    const completeMultipartUploadCommand = new CompleteMultipartUploadCommand({
-                        Bucket: bucketName,
-                        Key: s3Key,
-                        UploadId,
-                        MultipartUpload: {
-                            Parts: completedParts,
-                        },
-                    });
-
-                    await this.s3Client.send(completeMultipartUploadCommand);
-                    logger.info(`Successfully completed multipart upload for ${localFilePath} to s3://${bucketName}/${s3Key}`);
-                    return `s3://${bucketName}/${s3Key}`;
-
-                } catch (uploadError) {
-                    console.error("Error during multipart upload. Aborting...", uploadError);
-                    const abortMultipartUploadCommand = new AbortMultipartUploadCommand({
-                        Bucket: bucketName,
-                        Key: s3Key,
-                        UploadId,
-                    });
-                    await this.s3Client.send(abortMultipartUploadCommand);
-                    logger.info("Multipart upload aborted.");
-                    throw uploadError; // Re-throw the error after aborting
-                }
-            }
+            await upload.done();
+            onProgress?.({loaded: fileSizeInBytes, total: fileSizeInBytes});
+            logger.info(`Successfully uploaded ${localFilePath} to s3://${bucketName}/${s3Key}`);
+            return `s3://${bucketName}/${s3Key}`;
         } catch (error) {
             console.error(`Upload failed for ${localFilePath}:`, error);
-            throw error; // Re-throw the error to be handled by the caller
+            throw error;
         }
     }
 }
