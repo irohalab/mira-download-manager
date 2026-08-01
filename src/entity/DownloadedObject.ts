@@ -15,7 +15,7 @@
  */
 
 import { DownloadJob } from './DownloadJob';
-import { Entity, EntityRepositoryType, FilterQuery, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
+import { Entity, EntityRepositoryType, FilterQuery, ManyToOne, PrimaryKey, Property, TextType } from '@mikro-orm/core';
 import { randomUUID } from 'crypto';
 import { DownloadedObjectsRepository } from '../repository/DownloadedObjectsRepository';
 
@@ -27,16 +27,22 @@ export function reusableDownloadedObjectFilter(now: number = Date.now()): Filter
 
 @Entity({repository: () => DownloadedObjectsRepository})
 export class DownloadedObject {
-    @PrimaryKey()
+    @PrimaryKey({type: 'uuid', defaultRaw: 'gen_random_uuid()' })
     public id: string = randomUUID();
 
-    @Property()
+    @Property({
+        type: TextType,
+    })
     public name!: string;
 
-    @Property()
+    @Property({
+        type: TextType
+    })
     public localPath!: string;
 
-    @Property()
+    @Property({
+        type: TextType
+    })
     public s3Uri!: string;
 
     @Property()

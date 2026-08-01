@@ -1,4 +1,4 @@
-version: 1
+version: 2
 # amqp config for connecting to amqp server
 amqp:
   host: "localhost"
