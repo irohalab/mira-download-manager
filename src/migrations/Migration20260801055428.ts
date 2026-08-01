@@ -3,6 +3,7 @@ import { Migration } from '@mikro-orm/migrations';
 export class Migration20260801055428 extends Migration {
 
   override async up(): Promise<void> {
+    this.addSql(`CREATE EXTENSION IF NOT EXISTS pgcrypto;`);
     this.addSql(`alter table "downloaded_object" alter column "id" drop default;`);
     this.addSql(`alter table "downloaded_object" alter column "id" type uuid using ("id"::text::uuid);`);
     this.addSql(`alter table "downloaded_object" alter column "id" set default gen_random_uuid();`);
