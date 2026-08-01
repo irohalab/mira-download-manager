@@ -39,6 +39,25 @@ import {
 import { getStdLogger } from '../utils/Logger';
 import { S3Service } from './S3Service';
 import { DownloadedObject, reusableDownloadedObjectFilter } from '../entity/DownloadedObject';
+import {
+    FinishMessageResendPhase,
+    FinishMessageResendState,
+    FinishMessageResendStatus
+} from '../domain/FinishMessageResendState';
+
+interface DownloadCompleteProgress {
+    phase: FinishMessageResendPhase;
+    uploadedBytes: number;
+    totalBytes: number;
+    percent: number;
+}
+
+interface FinishMessageResendProgressReporter {
+    report(progress: DownloadCompleteProgress): void;
+    flush(): Promise<void>;
+}
+
+const RESEND_PROGRESS_SAVE_INTERVAL_MS = 1000;
 
 const logger = getStdLogger();
 
@@ -145,6 +164,149 @@ export class DownloadService {
         return await this.downloader.getTorrentContent(torrentId);
     }
 
+    public async startFinishMessageResend(jobId: string): Promise<FinishMessageResendState | undefined> {
+        const jobRepo = this.databaseService.getJobRepository();
+        const job = await jobRepo.findOne({id: jobId});
+        if (!job) {
+            return undefined;
+        }
+
+        const now = new Date().toISOString();
+        const resendState: FinishMessageResendState = {
+            id: uuid4(),
+            status: FinishMessageResendStatus.Pending,
+            requestedAt: now,
+            updatedAt: now
+        };
+        job.finishMessageResend = resendState;
+        await jobRepo.save(job);
+
+        this.runFinishMessageResend(jobId, resendState.id).catch((error) => {
+            logger.error(`failed to resend finish message for job#${jobId}`);
+            logger.error(error);
+            this.sentry.capture(error);
+        });
+        return resendState;
+    }
+
+    private async runFinishMessageResend(jobId: string, resendId: string): Promise<void> {
+        const jobRepo = this.databaseService.getJobRepository();
+        const job = await jobRepo.findOne({id: jobId});
+        if (!job || job.finishMessageResend?.id !== resendId) {
+            return;
+        }
+
+        const isCurrentResend = await this.updateFinishMessageResend(jobId, resendId, {
+            status: FinishMessageResendStatus.Running,
+            phase: FinishMessageResendPhase.Preparing
+        });
+        if (!isCurrentResend) {
+            return;
+        }
+
+        const progressReporter = this.createFinishMessageResendProgressReporter(jobId, resendId);
+        let operationError: unknown;
+
+        try {
+            await this.downloadComplete(job, progress => progressReporter.report(progress));
+        } catch (error) {
+            operationError = error;
+        }
+        try {
+            await progressReporter.flush();
+        } catch (progressError) {
+            logger.warn(progressError);
+            this.sentry.capture(progressError);
+        }
+
+        const completedAt = new Date().toISOString();
+        if (!operationError) {
+            const updated = await this.updateFinishMessageResend(jobId, resendId, {
+                status: FinishMessageResendStatus.Succeeded,
+                completedAt
+            });
+            if (updated) {
+                logger.info(`finish message resent for job#${jobId}`);
+            }
+        } else {
+            await this.updateFinishMessageResend(jobId, resendId, {
+                status: FinishMessageResendStatus.Failed,
+                completedAt,
+                error: operationError instanceof Error ? operationError.message : String(operationError)
+            });
+            logger.error(`failed to resend finish message for job#${jobId}`);
+            logger.error(operationError);
+            this.sentry.capture(operationError);
+        }
+    }
+
+    private async updateFinishMessageResend(jobId: string,
+                                            resendId: string,
+                                            update: Partial<Omit<FinishMessageResendState, 'id' | 'requestedAt' | 'updatedAt'>>): Promise<boolean> {
+        const jobRepo = this.databaseService.getJobRepository();
+        const job = await jobRepo.findOne({id: jobId});
+        if (!job || job.finishMessageResend?.id !== resendId) {
+            return false;
+        }
+        job.finishMessageResend = {
+            ...job.finishMessageResend,
+            ...update,
+            updatedAt: new Date().toISOString()
+        };
+        await jobRepo.save(job);
+        return true;
+    }
+
+    private createFinishMessageResendProgressReporter(jobId: string,
+                                                      resendId: string): FinishMessageResendProgressReporter {
+        let latestProgress: DownloadCompleteProgress | undefined;
+        let scheduledProgress: DownloadCompleteProgress | undefined;
+        let lastScheduledAt = 0;
+        let persistError: unknown;
+        let active = true;
+        let writeQueue = Promise.resolve();
+
+        const isSameProgress = (left?: DownloadCompleteProgress, right?: DownloadCompleteProgress): boolean => {
+            return left?.phase === right?.phase
+                && left?.uploadedBytes === right?.uploadedBytes
+                && left?.totalBytes === right?.totalBytes
+                && left?.percent === right?.percent;
+        };
+        const schedulePersist = (progress: DownloadCompleteProgress): void => {
+            const snapshot = {...progress};
+            scheduledProgress = snapshot;
+            lastScheduledAt = Date.now();
+            writeQueue = writeQueue
+                .then(async () => {
+                    if (active) {
+                        active = await this.updateFinishMessageResend(jobId, resendId, snapshot);
+                    }
+                })
+                .catch(error => {
+                    persistError ??= error;
+                });
+        };
+
+        return {
+            report: (progress) => {
+                latestProgress = {...progress};
+                const phaseChanged = scheduledProgress?.phase !== progress.phase;
+                if (phaseChanged || Date.now() - lastScheduledAt >= RESEND_PROGRESS_SAVE_INTERVAL_MS) {
+                    schedulePersist(latestProgress);
+                }
+            },
+            flush: async () => {
+                if (latestProgress && !isSameProgress(latestProgress, scheduledProgress)) {
+                    schedulePersist(latestProgress);
+                }
+                await writeQueue;
+                if (persistError) {
+                    throw persistError;
+                }
+            }
+        };
+    }
+
     /**
      * Copy video file from torrent save path to destination path.
      * return the copied video file path
@@ -181,7 +343,7 @@ export class DownloadService {
         }
     }
 
-    public async downloadComplete(job: DownloadJob): Promise<void> {
+    public async downloadComplete(job: DownloadJob, onProgress?: (progress: DownloadCompleteProgress) => void): Promise<void> {
         const files = await this.downloader.getTorrentContent(job.torrentId);
         const info = await this.downloader.getTorrentInfo(job.torrentId);
         const savePath = info.save_path;
@@ -194,22 +356,49 @@ export class DownloadService {
                 return rf;
             });
 
+        let uploadedBytes = 0;
+        let totalBytes = 0;
+        const reportProgress = (phase: FinishMessageResendPhase, loaded: number) => {
+            const normalizedLoaded = Math.min(Math.max(loaded, 0), totalBytes);
+            onProgress?.({
+                phase,
+                uploadedBytes: normalizedLoaded,
+                totalBytes,
+                percent: totalBytes === 0 ? 100 : Math.round(normalizedLoaded / totalBytes * 10000) / 100
+            });
+        };
 
         if (this.configManager.storageType() === 'S3') {
             const dlObjRepo = this.databaseService.getDownloadedObjectRepository(true);
             const expireInDays = this.configManager.s3Bucket().expireInDays;
             const downloadedObjects = await job.downloadedObjects.load({ where: reusableDownloadedObjectFilter() });
+            const downloadedObjectsByPath = new Map(downloadedObjects.map(obj => [obj.localPath, obj]));
             const newlyUploadedObjects: DownloadedObject[] = [];
-            for (const remoteFile of remoteFiles) {
-                if (downloadedObjects.length > 0) {
-                    const obj = downloadedObjects.find(obj => obj.localPath === remoteFile.fileLocalPath);
-                    if (obj) {
-                        remoteFile.fileUri = obj.s3Uri;
-                        logger.info(`${remoteFile.fileUri} was found for file ${remoteFile.fileLocalPath}, use it directly`);
-                        continue;
-                    }
+            totalBytes = files.reduce((total, file) => total + file.size, 0);
+
+            for (let fileIndex = 0; fileIndex < remoteFiles.length; fileIndex++) {
+                const remoteFile = remoteFiles[fileIndex];
+                const downloadedObject = downloadedObjectsByPath.get(remoteFile.fileLocalPath);
+                if (downloadedObject) {
+                    remoteFile.fileUri = downloadedObject.s3Uri;
+                    uploadedBytes += files[fileIndex].size;
+                    logger.info(`${remoteFile.fileUri} was found for file ${remoteFile.fileLocalPath}, use it directly`);
                 }
-                remoteFile.fileUri = await this.s3Service.upload(remoteFile.fileLocalPath);
+            }
+            reportProgress(FinishMessageResendPhase.Uploading, uploadedBytes);
+
+            for (let fileIndex = 0; fileIndex < remoteFiles.length; fileIndex++) {
+                const remoteFile = remoteFiles[fileIndex];
+                if (downloadedObjectsByPath.has(remoteFile.fileLocalPath)) {
+                    continue;
+                }
+                const uploadedBeforeFile = uploadedBytes;
+                const fileSize = files[fileIndex].size;
+                remoteFile.fileUri = await this.s3Service.upload(remoteFile.fileLocalPath, ({loaded}) => {
+                    reportProgress(FinishMessageResendPhase.Uploading, uploadedBeforeFile + Math.min(loaded, fileSize));
+                });
+                uploadedBytes = uploadedBeforeFile + fileSize;
+                reportProgress(FinishMessageResendPhase.Uploading, uploadedBytes);
                 const obj = new DownloadedObject();
                 obj.s3Uri = remoteFile.fileUri;
                 obj.expiration = new Date(Date.now() + expireInDays * 24 * 60 * 60 * 1000);
@@ -223,6 +412,8 @@ export class DownloadService {
                 await dlObjRepo.save(newlyUploadedObjects);
             }
         }
+
+        reportProgress(FinishMessageResendPhase.Publishing, totalBytes);
 
         if (job.fileMapping) {
             const messages = job.fileMapping.map((mapping) => {

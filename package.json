@@ -18,6 +18,7 @@
    },
    "dependencies": {
       "@aws-sdk/client-s3": "^3.821.0",
+      "@aws-sdk/lib-storage": "^3.1101.0",
       "@irohalab/mira-shared": "5.4.1",
       "@mikro-orm/core": "^6.6.16",
       "@mikro-orm/migrations": "^6.6.16",

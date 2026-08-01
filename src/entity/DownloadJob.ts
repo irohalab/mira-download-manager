@@ -31,6 +31,7 @@ import { DownloadJobRepository } from '../repository/DownloadJobRepository';
 import { randomUUID } from 'crypto';
 import { FileMapping } from '@irohalab/mira-shared/domain/FileMapping';
 import { DownloadedObject } from './DownloadedObject';
+import { FinishMessageResendState } from '../domain/FinishMessageResendState';
 
 @Entity({ repository: () => DownloadJobRepository })
 export class DownloadJob {
@@ -183,6 +184,13 @@ export class DownloadJob {
         nullable: true
     })
     public errorInfo!: { message?: string, stack?: string };
+
+    @Property({
+        columnType: 'jsonb',
+        type: JsonType,
+        nullable: true
+    })
+    public finishMessageResend?: FinishMessageResendState;
 
     @OneToMany({
         entity: () => DownloadedObject,

@@ -138,23 +138,13 @@ export class DownloadController extends BaseHttpController implements interfaces
 
     @httpPut('/job/:id/resend-finish-message')
     public async resendFinishMessage(@requestParam('id') jobId: string): Promise<IHttpActionResult> {
-        const job = await this._database.getJobRepository(true).findOne({ id: jobId});
-        if (job) {
-            try {
-                await this._downloadService.downloadComplete(job);
-            } catch (ex) {
-                logger.error(ex);
-                return this.json({
-                    data: ex,
-                    message: 'error while trying to resent message',
-                    status: 0
-                });
-            }
+        const resendState = await this._downloadService.startFinishMessageResend(jobId);
+        if (resendState) {
             return this.json({
-                data: null,
-                message: 'message resent!',
+                data: resendState,
+                message: 'message resend started',
                 status: 0
-            });
+            }, 202);
         } else {
             return this.json({
                 data: null,
@@ -162,6 +152,18 @@ export class DownloadController extends BaseHttpController implements interfaces
                 status: 1
             });
         }
+    }
+
+    @httpGet('/job/:id/resend-finish-message')
+    public async getFinishMessageResend(@requestParam('id') jobId: string): Promise<IHttpActionResult> {
+        const job = await this._database.getJobRepository(true).findOne({id: jobId});
+        if (!job) {
+            return JsonResultFactory(404);
+        }
+        return this.json({
+            data: job.finishMessageResend || null,
+            status: 0
+        });
     }
 
     @httpGet('/job/:id/content')
